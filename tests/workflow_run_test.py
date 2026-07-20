@@ -253,14 +253,14 @@ class WorkflowRunTest(unittest.TestCase):
         self.assertNotIn("environment:", source)
         self.assertNotIn("secrets.", source)
 
-    def test_untrusted_gates_run_in_parallel_before_required_check(self) -> None:
+    def test_untrusted_uses_bounded_hosted_runner_gates(self) -> None:
         source = (WORKFLOW_ROOT / "untrusted.yml").read_text(encoding="utf-8")
-        self.assertIn("  correctness:\n", source)
-        self.assertIn("  fuzz:\n", source)
-        checks = source.index("  checks:\n")
-        self.assertIn("    needs: [correctness, fuzz]\n", source[checks:])
-        self.assertIn('test "${{ needs.correctness.result }}" = success', source[checks:])
-        self.assertIn('test "${{ needs.fuzz.result }}" = success', source[checks:])
+        self.assertIn("    timeout-minutes: 30\n", source)
+        self.assertIn("-- zig build test-untrusted\n", source)
+        self.assertIn("-- zig build test-fuzz-driver fuzz-http1\n", source)
+        self.assertIn("-Dfuzz-runs=10000 -Dfuzz-timeout-seconds=600\n", source)
+        self.assertNotIn("-- zig build test\n", source)
+        self.assertNotIn("run-fuzz-matrix.sh", source)
         self.assertEqual(source.count("name: untrusted-evidence-${{ github.sha }}"), 1)
 
     def test_protected_workflows_authenticate_checkout_before_candidate_tools(self) -> None:

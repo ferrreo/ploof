@@ -1705,7 +1705,7 @@ class ReleaseToolingTest(unittest.TestCase):
         workflow = self.root / ".github/workflows/untrusted.yml"
         source = workflow.read_text(encoding="utf-8")
         workflow.write_text(
-            source.replace("-- zig build test\n", "-- /bin/true\n", 1),
+            source.replace("-- zig build test-untrusted\n", "-- /bin/true\n", 1),
             encoding="utf-8",
         )
         errors: list[str] = []

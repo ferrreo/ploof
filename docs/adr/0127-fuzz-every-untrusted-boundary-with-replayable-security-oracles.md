@@ -51,10 +51,11 @@ Every discovered crash, hang, disagreement, or security-boundary failure is
 minimized and checked into its target family's corpus with its deterministic
 oracle before the fix is considered complete. The protocol-only
 `SecurityCorpus` is public; scheduler and runtime corpora remain private because
-reactor internals are not public API. Ordinary tests replay every corpus. Change
-validation performs bounded fuzz smoke runs; scheduled CI performs longer
-multiprocess campaigns. Exact time budgets and release scheduling belong to the
-CI and release contract.
+reactor internals are not public API. Ordinary tests replay every corpus. Hosted
+change validation runs the Debug replay suite, fuzz-driver crash and hang smoke,
+and one 10,000-case Debug HTTP boundary campaign. Trusted, scheduled, and
+release validation run every family in all three modes on suitable hardware.
+Exact time budgets and release scheduling belong to the CI and release contract.
 
 Fuzzing runs in Debug, ReleaseSafe, and ReleaseFast with ADR 0126's allocation
 traps. Separate build steps target pure HTTP/1.1, route selection, and bounded

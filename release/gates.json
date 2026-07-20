@@ -335,12 +335,12 @@
     {
       "id": "untrusted.correctness",
       "lane": "untrusted",
-      "description": "Debug, ReleaseSafe, and ReleaseFast correctness and archive consumers"
+      "description": "Bounded Debug unit and corpus-replay smoke on hosted runners"
     },
     {
       "id": "untrusted.fuzz-smoke",
       "lane": "untrusted",
-      "description": "Fixed-work native fuzz smoke for every public target family"
+      "description": "Fail-closed driver and 10,000-case Debug HTTP fuzz smoke on hosted runners"
     },
     {
       "id": "trusted.real-io-floor",

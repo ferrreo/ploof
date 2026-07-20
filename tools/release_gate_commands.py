@@ -10,8 +10,11 @@ from release_common import fail, git_file, parse_zon, release_version
 
 STATIC_COMMANDS = {
     "untrusted.structure": ("tools/check-release-tooling.sh",),
-    "untrusted.correctness": ("zig", "build", "test"),
-    "untrusted.fuzz-smoke": ("tools/run-fuzz-matrix.sh", "10000"),
+    "untrusted.correctness": ("zig", "build", "test-untrusted"),
+    "untrusted.fuzz-smoke": (
+        "zig", "build", "test-fuzz-driver", "fuzz-http1",
+        "-Dfuzz-runs=10000", "-Dfuzz-timeout-seconds=600",
+    ),
     "trusted.real-io-floor": ("zig", "build", "test"),
     "trusted.real-io-current": ("zig", "build", "test"),
     "trusted.proxy-matrix": (
@@ -52,8 +55,8 @@ CANONICAL_GATE_IDS = frozenset(STATIC_COMMANDS) | EXTERNAL_GATES | RELEASE_COMMA
 WORKFLOW_RECORD_POLICY = {
     ".github/workflows/untrusted.yml": (
         "-- tools/check-release-tooling.sh",
-        "-- zig build test",
-        "-- tools/run-fuzz-matrix.sh 10000",
+        "-- zig build test-untrusted",
+        "-- zig build test-fuzz-driver fuzz-http1",
     ),
     ".github/workflows/trusted.yml": (
         "-- zig build test",

@@ -13,9 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  correctness:
+  checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -31,79 +31,23 @@ jobs:
           --revision "$GITHUB_SHA"
           --output zig-out/evidence
           -- tools/check-release-tooling.sh
-      - name: Correctness matrix
+      - name: Bounded correctness smoke
         run: >-
           python3 tools/release.py record
           --gate untrusted.correctness
           --revision "$GITHUB_SHA"
           --output zig-out/evidence
-          -- zig build test
-      - name: Retain correctness evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: untrusted-correctness-${{ github.sha }}
-          path: zig-out/evidence
-          if-no-files-found: error
-          retention-days: 1
-
-  fuzz:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - name: Install exact Zig
-        run: |
-          tools/install-zig.sh "$RUNNER_TEMP/zig"
-          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
-      - name: Fuzz smoke
+          -- zig build test-untrusted
+      - name: Bounded native fuzz smoke
         run: >-
           python3 tools/release.py record
           --gate untrusted.fuzz-smoke
           --revision "$GITHUB_SHA"
           --output zig-out/evidence
-          -- tools/run-fuzz-matrix.sh 10000
-      - name: Retain fuzz evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: untrusted-fuzz-${{ github.sha }}
-          path: zig-out/evidence
-          if-no-files-found: error
-          retention-days: 1
-
-  checks:
-    if: ${{ always() }}
-    needs: [correctness, fuzz]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - name: Require parallel gates
-        run: |
-          test "${{ needs.correctness.result }}" = success
-          test "${{ needs.fuzz.result }}" = success
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - name: Download correctness evidence
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: untrusted-correctness-${{ github.sha }}
-          path: zig-out/incoming/correctness
-      - name: Download fuzz evidence
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: untrusted-fuzz-${{ github.sha }}
-          path: zig-out/incoming/fuzz
-      - name: Merge untrusted evidence
-        run: >-
-          python3 tools/release.py merge-evidence
-          --input zig-out/incoming/correctness
-          --input zig-out/incoming/fuzz
-          --output zig-out/evidence
+          -- zig build test-fuzz-driver fuzz-http1
+          -Dfuzz-runs=10000 -Dfuzz-timeout-seconds=600
       - name: Retain evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: untrusted-evidence-${{ github.sha }}

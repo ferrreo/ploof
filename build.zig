@@ -44,6 +44,10 @@ pub fn build(b: *std.Build) void {
 
     const target = supportedTarget(b);
     const test_step = b.step("test", "Run all current correctness checks");
+    const untrusted_step = b.step(
+        "test-untrusted",
+        "Run bounded hosted-runner correctness checks",
+    );
     const format_check = b.addFmt(.{
         .paths = &.{
             "benchmark.zig",
@@ -84,9 +88,9 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(load_driver);
     addLoadDriverChecks(b, test_step, target, load_driver);
-    addUnitTests(b, test_step, target, .Debug);
-    addUnitTests(b, test_step, target, .ReleaseSafe);
-    addUnitTests(b, test_step, target, .ReleaseFast);
+    addUnitTests(b, &.{ test_step, untrusted_step }, target, .Debug);
+    addUnitTests(b, &.{test_step}, target, .ReleaseSafe);
+    addUnitTests(b, &.{test_step}, target, .ReleaseFast);
     addThreadSanitizerTests(b, test_step);
     addTargetDiagnosticTests(b, test_step);
     addLibcFreeCheck(b, test_step, ploof, target);
@@ -375,7 +379,7 @@ fn supportedTarget(b: *std.Build) std.Build.ResolvedTarget {
 
 fn addUnitTests(
     b: *std.Build,
-    test_step: *std.Build.Step,
+    test_steps: []const *std.Build.Step,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) void {
@@ -401,8 +405,12 @@ fn addUnitTests(
 
     const production_tests = b.addTest(.{ .root_module = production_tests_module });
     const testing_tests = b.addTest(.{ .root_module = testing });
-    test_step.dependOn(&b.addRunArtifact(production_tests).step);
-    test_step.dependOn(&b.addRunArtifact(testing_tests).step);
+    const production_run = &b.addRunArtifact(production_tests).step;
+    const testing_run = &b.addRunArtifact(testing_tests).step;
+    for (test_steps) |test_step| {
+        test_step.dependOn(production_run);
+        test_step.dependOn(testing_run);
+    }
 }
 
 fn addTargetDiagnosticTests(b: *std.Build, test_step: *std.Build.Step) void {
