@@ -1,0 +1,127 @@
+name: trusted
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Reviewed commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  real-io:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - case: linux-6.1-intel
+            gate: trusted.real-io-floor
+            runner: '["self-hosted","linux","x64","ploof-trusted","kernel-min-6.1.177","intel"]'
+          - case: linux-7.1-amd
+            gate: trusted.real-io-current
+            runner: '["self-hosted","linux","x64","ploof-trusted","kernel-min-7.1.3","amd"]'
+    runs-on: ${{ fromJSON(matrix.runner) }}
+    timeout-minutes: 180
+    environment: trusted
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Authenticate exact candidate before candidate tools
+        env:
+          CANDIDATE_REVISION: ${{ inputs.revision }}
+        run: |
+          set -eu
+          printf '%s\n' "$CANDIDATE_REVISION" | \
+            grep -Eq '^([0-9a-f]{40}|[0-9a-f]{64})$'
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$CANDIDATE_REVISION"
+      - run: python3 tools/release.py check-host --case "${{ matrix.case }}"
+      - run: >-
+          python3 tools/release.py record
+          --gate "${{ matrix.gate }}"
+          --revision HEAD
+          --output zig-out/evidence
+          -- zig build test
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ matrix.gate }}-${{ inputs.revision }}
+          path: zig-out/evidence
+          if-no-files-found: error
+
+  proxy-and-tsan:
+    runs-on: [self-hosted, linux, x64, ploof-trusted, kernel-min-7.1.3, intel]
+    timeout-minutes: 180
+    environment: trusted
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Authenticate exact candidate before candidate tools
+        env:
+          CANDIDATE_REVISION: ${{ inputs.revision }}
+        run: |
+          set -eu
+          printf '%s\n' "$CANDIDATE_REVISION" | \
+            grep -Eq '^([0-9a-f]{40}|[0-9a-f]{64})$'
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$CANDIDATE_REVISION"
+      - run: python3 tools/release.py check-host --case linux-7.1-intel
+      - run: >-
+          python3 tools/release.py record
+          --gate trusted.proxy-matrix
+          --revision HEAD
+          --output zig-out/evidence
+          -- zig build test-proxy-interop -Dproxy-interop-required=true
+      - run: >-
+          python3 tools/release.py record
+          --gate trusted.thread-sanitizer
+          --revision HEAD
+          --output zig-out/evidence
+          -- zig build test-thread-sanitizer
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trusted-proxy-tsan-${{ inputs.revision }}
+          path: zig-out/evidence
+          if-no-files-found: error
+
+  performance:
+    runs-on: [self-hosted, linux, x64, ploof-performance, kernel-min-7.1.3, amd]
+    timeout-minutes: 360
+    environment: performance
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Authenticate exact candidate before candidate tools
+        env:
+          CANDIDATE_REVISION: ${{ inputs.revision }}
+        run: |
+          set -eu
+          printf '%s\n' "$CANDIDATE_REVISION" | \
+            grep -Eq '^([0-9a-f]{40}|[0-9a-f]{64})$'
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$CANDIDATE_REVISION"
+      - run: python3 tools/release.py check-host --case linux-7.1-amd
+      - run: >-
+          python3 tools/release.py record
+          --gate trusted.sigbench-regression
+          --revision HEAD
+          --output zig-out/evidence
+          --artifact zig-out/external/trusted.sigbench-regression.tar
+          -- tools/run-external-gate.sh trusted.sigbench-regression
+          zig-out/external/trusted.sigbench-regression.tar
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trusted-performance-${{ inputs.revision }}
+          path: zig-out/evidence
+          if-no-files-found: error

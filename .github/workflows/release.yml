@@ -1,0 +1,308 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Signed annotated release tag
+        required: true
+        type: string
+      evidence_run_id:
+        description: Run containing candidate-evidence artifact
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    runs-on: [self-hosted, linux, x64, ploof-release]
+    timeout-minutes: 360
+    environment: release
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate signed tag before candidate tools
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          git verify-tag "$RELEASE_TAG"
+          tag_revision=$(git rev-parse --verify "$RELEASE_TAG^{commit}")
+          head_revision=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"
+          test "$GITHUB_SHA" = "$tag_revision"
+          test "$tag_revision" = "$head_revision"
+      - name: Install exact Zig
+        run: |
+          tools/install-zig.sh "$RUNNER_TEMP/zig"
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+      - name: Fetch evidence workflow metadata
+        env:
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -efu
+          printf '%s\n' "$EVIDENCE_RUN_ID" | grep -Eq '^[1-9][0-9]{0,18}$'
+          metadata_dir="$RUNNER_TEMP/ploof-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$metadata_dir"
+          mkdir -m 700 "$metadata_dir"
+          response="$metadata_dir/evidence-run.json"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$EVIDENCE_RUN_ID" > "$response"
+      - name: Authenticate evidence workflow run
+        env:
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+        run: |
+          set -efu
+          metadata_dir="$RUNNER_TEMP/ploof-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          response="$metadata_dir/evidence-run.json"
+          test -f "$response"
+          test ! -L "$response"
+          env -u GH_TOKEN -u GITHUB_TOKEN python3 tools/workflow_run.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --revision "$(git rev-parse --verify 'HEAD^{commit}')" \
+            --run-id "$EVIDENCE_RUN_ID" \
+            --source .github/workflows/evidence.yml=workflow_dispatch < "$response"
+          test ! -e zig-out/evidence
+      - name: Download exact-candidate evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: candidate-evidence
+          path: zig-out/evidence
+          run-id: ${{ inputs.evidence_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+      - name: Refetch evidence workflow metadata after download
+        env:
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -efu
+          printf '%s\n' "$EVIDENCE_RUN_ID" | grep -Eq '^[1-9][0-9]{0,18}$'
+          metadata_dir="$RUNNER_TEMP/ploof-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          response="$metadata_dir/evidence-run.post-download.json"
+          test ! -e "$response"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$EVIDENCE_RUN_ID" > "$response"
+      - name: Re-authenticate evidence workflow run after download
+        env:
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+        run: |
+          set -efu
+          metadata_dir="$RUNNER_TEMP/ploof-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          response="$metadata_dir/evidence-run.post-download.json"
+          test -f "$response"
+          test ! -L "$response"
+          test -d zig-out/evidence
+          test ! -L zig-out/evidence
+          env -u GH_TOKEN -u GITHUB_TOKEN python3 tools/workflow_run.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --revision "$(git rev-parse --verify 'HEAD^{commit}')" \
+            --run-id "$EVIDENCE_RUN_ID" \
+            --source .github/workflows/evidence.yml=workflow_dispatch < "$response"
+      - name: Verify signed tag
+        run: >-
+          python3 tools/release.py record
+          --gate release.signed-tag
+          --revision HEAD
+          --output zig-out/evidence
+          -- python3 tools/release.py verify-tag
+          --tag "${{ inputs.tag }}"
+          --revision HEAD
+      - name: Build and verify source release
+        run: |
+          set -eu
+          manifest=$(python3 tools/release.py archive \
+            --revision HEAD \
+            --output zig-out/release \
+            --evidence zig-out/evidence)
+          base=${manifest%.manifest.json}
+          python3 tools/release.py record \
+            --gate release.archive \
+            --revision HEAD \
+            --output zig-out/evidence \
+            --artifact "$manifest" \
+            --artifact "$base.tar" \
+            --artifact "$base.sha256" \
+            --artifact "$base.zig-hash" \
+            --artifact "$base.spdx.json" \
+            --artifact "$base.provenance.json" \
+            --artifact "$base.release-notes.md" \
+            -- python3 tools/release.py verify-consumer \
+              --manifest "$manifest" \
+              --evidence zig-out/evidence \
+              --reproduce
+      - name: Verify release documentation
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          base="zig-out/release/ploof-${RELEASE_TAG#v}"
+          python3 tools/release.py record \
+            --gate release.documentation \
+            --revision HEAD \
+            --output zig-out/evidence \
+            --artifact "$base.release-notes.md" \
+            -- python3 tools/release.py verify-artifacts \
+              --manifest "$base.manifest.json" \
+              --evidence zig-out/evidence
+      - name: Retain verified pre-attestation release
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ploof-pre-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            zig-out/release
+            zig-out/evidence
+          if-no-files-found: error
+          retention-days: 7
+
+  attest:
+    needs: build
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download verified pre-attestation release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: zig-out
+          merge-multiple: true
+      - name: Attest source archive
+        id: attest
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+        with:
+          subject-path: zig-out/release/ploof-*.tar
+      - name: Retain attestation bundle
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ploof-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 7
+
+  finalize:
+    needs: [build, attest]
+    runs-on: [self-hosted, linux, x64, ploof-release]
+    timeout-minutes: 120
+    environment: release
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate signed tag before candidate tools
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          git verify-tag "$RELEASE_TAG"
+          tag_revision=$(git rev-parse --verify "$RELEASE_TAG^{commit}")
+          head_revision=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"
+          test "$GITHUB_SHA" = "$tag_revision"
+          test "$tag_revision" = "$head_revision"
+      - name: Download verified pre-attestation release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: zig-out
+          merge-multiple: true
+      - name: Download attestation bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.attest.outputs.artifact_id }}
+          path: zig-out/attestation/bundle
+          merge-multiple: true
+      - name: Verify downloaded release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          base="zig-out/release/ploof-${RELEASE_TAG#v}"
+          python3 tools/release.py verify-artifacts \
+            --manifest "$base.manifest.json" \
+            --evidence zig-out/evidence
+      - name: Verify GitHub attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          set -- zig-out/release/ploof-*.tar
+          test "$#" -eq 1
+          archive=$1
+          test -f "$archive"
+          test ! -L "$archive"
+          set -- zig-out/attestation/bundle/*
+          test "$#" -eq 1
+          bundle=$1
+          test -f "$bundle"
+          test ! -L "$bundle"
+          candidate=$(git rev-parse --verify 'HEAD^{commit}')
+          verification=zig-out/attestation/verification.json
+          test ! -e "$verification"
+          gh attestation verify "$archive" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$bundle" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-digest "$candidate" \
+            --source-ref "refs/tags/$RELEASE_TAG" \
+            --deny-self-hosted-runners \
+            --format json > "$verification"
+          test -s "$verification"
+      - name: Retain provenance verification
+        run: |
+          set -eu
+          set -- zig-out/attestation/bundle/*
+          test "$#" -eq 1
+          bundle=$1
+          verification=zig-out/attestation/verification.json
+          test -f "$bundle"
+          test ! -L "$bundle"
+          test -f "$verification"
+          test ! -L "$verification"
+          env -u GH_TOKEN -u GITHUB_TOKEN python3 tools/release.py record \
+            --gate release.provenance \
+            --revision HEAD \
+            --output zig-out/evidence \
+            --artifact "$bundle" \
+            --artifact "$verification" \
+            -- test -s "$verification"
+      - name: Require complete evidence
+        run: >-
+          python3 tools/release.py verify-evidence
+          --revision HEAD
+          --evidence zig-out/evidence
+      - name: Retain candidate release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: >-
+            ploof-${{ inputs.tag }}-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            zig-out/release
+            zig-out/evidence
+          if-no-files-found: error
+          retention-days: 90

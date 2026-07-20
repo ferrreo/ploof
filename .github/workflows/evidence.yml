@@ -1,0 +1,200 @@
+name: evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact candidate commit SHA
+        required: true
+        type: string
+      run_ids:
+        description: Space-separated trusted GitHub run IDs
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  collect:
+    runs-on: [self-hosted, linux, x64, ploof-trusted]
+    timeout-minutes: 60
+    environment: release
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Authenticate exact candidate before candidate tools
+        env:
+          CANDIDATE_REVISION: ${{ inputs.revision }}
+        run: |
+          set -efu
+          printf '%s\n' "$CANDIDATE_REVISION" | \
+            grep -Eq '^([0-9a-f]{40}|[0-9a-f]{64})$'
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$CANDIDATE_REVISION"
+      - name: Fetch evidence run metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_IDS: ${{ inputs.run_ids }}
+        run: |
+          set -efu
+          candidate=$(git rev-parse --verify 'HEAD^{commit}')
+          test -n "$RUN_IDS"
+          set -- $RUN_IDS
+          test "$#" -eq 3 || {
+            echo "exactly three source workflow run IDs are required" >&2
+            exit 1
+          }
+          seen=' '
+          metadata_dir="$RUNNER_TEMP/ploof-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$metadata_dir"
+          mkdir -m 700 "$metadata_dir"
+          for run_id in $RUN_IDS; do
+            printf '%s\n' "$run_id" | grep -Eq '^[1-9][0-9]{0,18}$' || {
+              echo "invalid run ID: $run_id" >&2
+              exit 1
+            }
+            case "$seen" in
+              *" $run_id "*) echo "duplicate run ID: $run_id" >&2; exit 1 ;;
+            esac
+            seen="$seen$run_id "
+            response="$metadata_dir/$run_id.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > "$response"
+          done
+      - name: Authenticate evidence run provenance
+        env:
+          RUN_IDS: ${{ inputs.run_ids }}
+        run: |
+          set -efu
+          candidate=$(git rev-parse --verify 'HEAD^{commit}')
+          set -- $RUN_IDS
+          test "$#" -eq 3
+          metadata_dir="$RUNNER_TEMP/ploof-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          authenticated="$metadata_dir/authenticated-runs"
+          test ! -e "$authenticated"
+          : > "$authenticated"
+          chmod 600 "$authenticated"
+          seen_workflows=' '
+          for run_id in $RUN_IDS; do
+            response="$metadata_dir/$run_id.json"
+            test -f "$response"
+            test ! -L "$response"
+            workflow=$(env -u GH_TOKEN -u GITHUB_TOKEN python3 tools/workflow_run.py \
+              --repository "$GITHUB_REPOSITORY" \
+              --revision "$candidate" \
+              --run-id "$run_id" \
+              --source .github/workflows/untrusted.yml=push \
+              --source .github/workflows/trusted.yml=workflow_dispatch \
+              --source .github/workflows/scheduled.yml=workflow_dispatch \
+              --source .github/workflows/scheduled.yml=schedule < "$response")
+            case "$seen_workflows" in
+              *" $workflow "*) echo "duplicate source workflow: $workflow" >&2; exit 1 ;;
+            esac
+            seen_workflows="$seen_workflows$workflow "
+            printf '%s %s\n' "$run_id" "$workflow" >> "$authenticated"
+          done
+      - name: Download authenticated evidence runs
+        env:
+          CANDIDATE_REVISION: ${{ inputs.revision }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -efu
+          metadata_dir="$RUNNER_TEMP/ploof-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          authenticated="$metadata_dir/authenticated-runs"
+          test -f "$authenticated"
+          test ! -L "$authenticated"
+          test "$(wc -l < "$authenticated")" -eq 3
+          test ! -e zig-out/incoming
+          mkdir -p zig-out/incoming
+          while read -r run_id workflow; do
+            test ! -e "zig-out/incoming/$run_id"
+            case "$workflow" in
+              .github/workflows/untrusted.yml)
+                artifacts="untrusted-evidence-$CANDIDATE_REVISION"
+                ;;
+              .github/workflows/trusted.yml)
+                artifacts="
+                  trusted.real-io-floor-$CANDIDATE_REVISION
+                  trusted.real-io-current-$CANDIDATE_REVISION
+                  trusted-proxy-tsan-$CANDIDATE_REVISION
+                  trusted-performance-$CANDIDATE_REVISION
+                "
+                ;;
+              .github/workflows/scheduled.yml)
+                artifacts="
+                  scheduled-linux-6.1-intel-$run_id
+                  scheduled-linux-6.1-amd-$run_id
+                  scheduled-linux-6.6-intel-$run_id
+                  scheduled-linux-6.12-amd-$run_id
+                  scheduled-linux-6.18-intel-$run_id
+                  scheduled-linux-7.1-intel-$run_id
+                  scheduled-linux-7.1-amd-$run_id
+                  scheduled.security-fuzz-$run_id
+                  scheduled.resource-plateau-$run_id
+                  scheduled.runtime-benchmarks-$run_id
+                  scheduled.deployment-direct-$run_id
+                  scheduled.deployment-caddy-$run_id
+                  scheduled.deployment-nginx-$run_id
+                  release.fuzz-budget-$run_id
+                  release.soak-floor-$run_id
+                  release.soak-current-$run_id
+                "
+                ;;
+              *) echo "unexpected source workflow: $workflow" >&2; exit 1 ;;
+            esac
+            mkdir "zig-out/incoming/$run_id"
+            for artifact in $artifacts; do
+              gh run download "$run_id" \
+                --repo "$GITHUB_REPOSITORY" \
+                --name "$artifact" \
+                --dir "zig-out/incoming/$run_id/$artifact"
+            done
+            response="$metadata_dir/$run_id.post-download.json"
+            test ! -e "$response"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > "$response"
+          done < "$authenticated"
+      - name: Re-authenticate evidence runs after download
+        run: |
+          set -efu
+          candidate=$(git rev-parse --verify 'HEAD^{commit}')
+          metadata_dir="$RUNNER_TEMP/ploof-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          authenticated="$metadata_dir/authenticated-runs"
+          test -f "$authenticated"
+          test ! -L "$authenticated"
+          test "$(wc -l < "$authenticated")" -eq 3
+          while read -r run_id expected_workflow; do
+            response="$metadata_dir/$run_id.post-download.json"
+            test -f "$response"
+            test ! -L "$response"
+            workflow=$(env -u GH_TOKEN -u GITHUB_TOKEN python3 tools/workflow_run.py \
+              --repository "$GITHUB_REPOSITORY" \
+              --revision "$candidate" \
+              --run-id "$run_id" \
+              --source .github/workflows/untrusted.yml=push \
+              --source .github/workflows/trusted.yml=workflow_dispatch \
+              --source .github/workflows/scheduled.yml=workflow_dispatch \
+              --source .github/workflows/scheduled.yml=schedule < "$response")
+            test "$workflow" = "$expected_workflow"
+          done < "$authenticated"
+      - name: Merge and validate pre-release evidence
+        run: |
+          set -eu
+          python3 tools/release.py merge-evidence \
+            --input zig-out/incoming \
+            --output zig-out/evidence
+          python3 tools/release.py verify-evidence \
+            --revision HEAD \
+            --evidence zig-out/evidence \
+            --exclude-gate release.signed-tag \
+            --exclude-gate release.archive \
+            --exclude-gate release.documentation \
+            --exclude-gate release.provenance
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: candidate-evidence
+          path: zig-out/evidence
+          if-no-files-found: error
+          retention-days: 30

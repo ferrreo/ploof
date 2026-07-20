@@ -1,0 +1,55 @@
+name: untrusted
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: untrusted-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install exact Zig
+        run: |
+          tools/install-zig.sh "$RUNNER_TEMP/zig"
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+      - name: Structural checks
+        run: >-
+          python3 tools/release.py record
+          --gate untrusted.structure
+          --revision "$GITHUB_SHA"
+          --output zig-out/evidence
+          -- tools/check-release-tooling.sh
+      - name: Correctness matrix
+        run: >-
+          python3 tools/release.py record
+          --gate untrusted.correctness
+          --revision "$GITHUB_SHA"
+          --output zig-out/evidence
+          -- zig build test
+      - name: Fuzz smoke
+        run: >-
+          python3 tools/release.py record
+          --gate untrusted.fuzz-smoke
+          --revision "$GITHUB_SHA"
+          --output zig-out/evidence
+          -- tools/run-fuzz-matrix.sh 10000
+      - name: Retain evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: untrusted-evidence-${{ github.sha }}
+          path: zig-out/evidence
+          if-no-files-found: error
+          retention-days: 30
