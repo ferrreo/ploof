@@ -253,6 +253,16 @@ class WorkflowRunTest(unittest.TestCase):
         self.assertNotIn("environment:", source)
         self.assertNotIn("secrets.", source)
 
+    def test_untrusted_gates_run_in_parallel_before_required_check(self) -> None:
+        source = (WORKFLOW_ROOT / "untrusted.yml").read_text(encoding="utf-8")
+        self.assertIn("  correctness:\n", source)
+        self.assertIn("  fuzz:\n", source)
+        checks = source.index("  checks:\n")
+        self.assertIn("    needs: [correctness, fuzz]\n", source[checks:])
+        self.assertIn('test "${{ needs.correctness.result }}" = success', source[checks:])
+        self.assertIn('test "${{ needs.fuzz.result }}" = success', source[checks:])
+        self.assertEqual(source.count("name: untrusted-evidence-${{ github.sha }}"), 1)
+
     def test_protected_workflows_authenticate_checkout_before_candidate_tools(self) -> None:
         for name in ("trusted.yml", "scheduled.yml", "evidence.yml"):
             source = (WORKFLOW_ROOT / name).read_text(encoding="utf-8")
