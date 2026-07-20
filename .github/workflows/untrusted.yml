@@ -15,7 +15,7 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -31,20 +31,21 @@ jobs:
           --revision "$GITHUB_SHA"
           --output zig-out/evidence
           -- tools/check-release-tooling.sh
-      - name: Correctness matrix
+      - name: Bounded correctness smoke
         run: >-
           python3 tools/release.py record
           --gate untrusted.correctness
           --revision "$GITHUB_SHA"
           --output zig-out/evidence
-          -- zig build test
-      - name: Fuzz smoke
+          -- zig build test-untrusted
+      - name: Bounded native fuzz smoke
         run: >-
           python3 tools/release.py record
           --gate untrusted.fuzz-smoke
           --revision "$GITHUB_SHA"
           --output zig-out/evidence
-          -- tools/run-fuzz-matrix.sh 10000
+          -- zig build test-fuzz-driver fuzz-http1
+          -Dfuzz-runs=10000 -Dfuzz-timeout-seconds=600
       - name: Retain evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

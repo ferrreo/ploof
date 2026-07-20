@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Value = struct {
     pub const JsonApplicationError = anyerror;

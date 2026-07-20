@@ -1,6 +1,6 @@
 const std = @import("std");
 const authority_parser = @import("authority.zig");
-const fuzz_support = @import("fuzz_support.zig");
+const fuzz_support = @import("testing/smith.zig");
 const request_head = @import("request_head.zig");
 const request_target = @import("request_target.zig");
 const syntax = @import("syntax.zig");

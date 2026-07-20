@@ -1,5 +1,5 @@
 const std = @import("std");
-const connection_chunked_body = @import("connection_chunked_body.zig");
+const connection_chunked_body = @import("connection/chunked_body.zig");
 const runtime_time = @import("time.zig");
 
 pub const ChunkedProfile = connection_chunked_body.Profile;

@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Writer = struct {
     pub fn write(_: *Writer, comptime _: []const u8) error{}!void {}

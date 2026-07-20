@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Producer = struct {
     bytes: [32]u8 = [_]u8{0} ** 32,

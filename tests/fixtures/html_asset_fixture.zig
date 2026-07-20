@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 pub fn Bundle(comptime kind: ploof.Asset.MediaKind, comptime bytes: []const u8) type {
     return ploof.Asset.Bundle(Generated(kind, bytes));

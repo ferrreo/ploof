@@ -1,8 +1,8 @@
 const std = @import("std");
-const flat_schema = @import("internal/flat_schema.zig");
+const flat_schema = @import("internal/flat/schema.zig");
 const route = @import("route.zig");
 const route_graph = @import("internal/route_graph.zig");
-const syntax = @import("internal/url_syntax.zig");
+const syntax = @import("internal/url/syntax.zig");
 const url = @import("url.zig");
 
 pub const query_pairs_standard_max: u16 = 1000;

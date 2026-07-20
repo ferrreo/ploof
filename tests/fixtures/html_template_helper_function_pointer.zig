@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 fn helper(_: *const fn () void) []const u8 {
     return "forbidden";

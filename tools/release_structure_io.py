@@ -171,11 +171,14 @@ def production_zig(path: Path, root: Path) -> bool:
     relative = path.relative_to(root).as_posix()
     name = path.name
     if not relative.startswith("src/"):
-        build_helper = path.parent == root and name.startswith("build")
+        build_helper = relative.startswith("build/") or (
+            path.parent == root and name.startswith("build")
+        )
         return build_helper or relative.startswith("tools/") and not name.startswith("test")
     excluded = ("_test.zig", "_benchmark.zig", "_fuzz_check.zig")
-    return not name.endswith(excluded) and name not in {
-        "benchmark.zig", "testing.zig", "testing_facade.zig", "runtime_tsan_test.zig",
+    return not name.endswith(excluded) and relative not in {
+        "src/testing.zig",
+        "src/testing/facade.zig",
     }
 
 

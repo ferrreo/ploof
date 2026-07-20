@@ -1,9 +1,9 @@
 const std = @import("std");
 const route = @import("../route.zig");
-const route_graph_index = @import("route_graph_index.zig");
-const route_graph_method = @import("route_graph_method.zig");
-const route_graph_materialize = @import("route_graph_materialize.zig");
-const route_graph_search = @import("route_graph_search.zig");
+const route_graph_index = @import("route_graph/index.zig");
+const route_graph_method = @import("route_graph/method.zig");
+const route_graph_materialize = @import("route_graph/materialize.zig");
+const route_graph_search = @import("route_graph/search.zig");
 
 pub const Method = route.Method;
 pub const GraphLimits = route.GraphLimits;
@@ -76,7 +76,7 @@ pub const Redirect = struct {
     slash_change: SlashChange,
 };
 
-pub const Allow = @import("route_graph_allow.zig").Allow;
+pub const Allow = @import("route_graph/allow.zig").Allow;
 
 pub const SelectInput = struct {
     method: []const u8,
@@ -644,49 +644,4 @@ fn methodOrder(method: Method) i8 {
         .patch => 4,
         .delete => 5,
     };
-}
-
-const test_fixture = @import("route_graph_test.zig");
-const BehaviorGraph = Graph(test_fixture.behavior_definitions, .{});
-const BehaviorGraphReversed = Graph(test_fixture.reversed_definitions, .{});
-const MaximumCaptureGraph = Graph([_]test_fixture.BehaviorDefinition{.{
-    .method = .get,
-    .path = &test_fixture.maximum_capture_pattern,
-    .route_id = 0,
-}}, .{
-    .segments_max = route.captures_hard_max,
-    .captures_max = route.captures_hard_max,
-    .search_visits_max = route.captures_hard_max + 1,
-});
-const MaximumDepthGraph = Graph([_]test_fixture.BehaviorDefinition{.{
-    .method = .get,
-    .path = &test_fixture.maximum_depth_pattern,
-    .route_id = 0,
-}}, .{
-    .segments_max = route.segments_hard_max,
-    .search_visits_max = route.segments_hard_max + 1,
-});
-test "route graph selection contract" {
-    try test_fixture.run(BehaviorGraph, patternIssue);
-}
-test "route graph bounded differential fuzz" {
-    try @import("route_graph_fuzz.zig").run(BehaviorGraph, BehaviorGraphReversed);
-}
-test "route graph accepts hard maximum distinct captures" {
-    try std.testing.expectEqual(route.captures_hard_max, MaximumCaptureGraph.maximum_captures);
-}
-test "planned captures survive route search workspace reuse" {
-    try test_fixture.plannedCapturesSurviveReuse(BehaviorGraph);
-}
-test "planned route materialization rejects mismatched paths" {
-    try test_fixture.materializeRejectsMismatchedPaths(BehaviorGraph);
-}
-test "HEAD fallback and slash alternate obey three-search select bound" {
-    try test_fixture.searchCountBound(BehaviorGraph, route_graph_search);
-}
-test "maximum-depth route planning fits a 64 KiB child stack" {
-    try test_fixture.maximumDepthSmallStack(
-        MaximumDepthGraph,
-        &test_fixture.maximum_depth_pattern,
-    );
 }

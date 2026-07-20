@@ -1,11 +1,11 @@
 const std = @import("std");
 const body = @import("body.zig");
-const flat_schema = @import("internal/flat_schema.zig");
+const flat_schema = @import("internal/flat/schema.zig");
 const syntax = @import("internal/http1/syntax.zig");
-const file_sink = @import("multipart_file_sink.zig");
-const file_sink_config = @import("multipart_file_sink_config.zig");
-const upload = @import("multipart_upload.zig");
-const upload_schema = @import("multipart_upload_schema.zig");
+const file_sink = @import("multipart/file_sink.zig");
+const file_sink_config = @import("multipart/file_sink_config.zig");
+const upload = @import("multipart/upload.zig");
+const upload_schema = @import("multipart/upload_schema.zig");
 
 pub const TextDecodeError = flat_schema.TextDecodeError;
 pub const Access = upload.Access;

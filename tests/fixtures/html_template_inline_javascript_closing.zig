@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 const fixture = @import("html_asset_fixture.zig");
 
 const Assets = fixture.Bundle(.javascript, "const x = '</ScRiPt attack';");

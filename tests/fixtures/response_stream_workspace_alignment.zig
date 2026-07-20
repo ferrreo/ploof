@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Producer = struct {
     lanes: @Vector(4, u64) = @splat(0),

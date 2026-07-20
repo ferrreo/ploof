@@ -393,7 +393,7 @@ pub const Controller = struct {
 
 const config = @import("config.zig");
 const deterministic_reactor = @import("deterministic_reactor.zig");
-const worker_storage = @import("worker_storage.zig");
+const worker_storage = @import("worker/storage.zig");
 
 const TestApp = struct {
     pub const Workspace = struct { marker: u8 = 0 };

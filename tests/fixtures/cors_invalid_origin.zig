@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const invalid = ploof.Cors.exact(&.{"https://bad.example/"}, .{});
 

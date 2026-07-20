@@ -1,5 +1,5 @@
-const flat_schema = @import("internal/flat_schema.zig");
-const flat_wire = @import("internal/flat_wire.zig");
+const flat_schema = @import("internal/flat/schema.zig");
+const flat_wire = @import("internal/flat/wire.zig");
 const http1_limits = @import("internal/http1/limits.zig");
 
 pub const Raw = flat_wire.Table;

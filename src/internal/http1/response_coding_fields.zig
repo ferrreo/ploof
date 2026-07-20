@@ -1,5 +1,5 @@
 const std = @import("std");
-const fuzz_support = @import("fuzz_support.zig");
+const fuzz_support = @import("testing/smith.zig");
 const limits = @import("limits.zig");
 const media_type = @import("media_type.zig");
 const response_head = @import("response_head.zig");

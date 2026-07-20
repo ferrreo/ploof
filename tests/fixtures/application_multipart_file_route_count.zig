@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const FileHandler = struct {
     pub const ploof_multipart_endpoint = true;

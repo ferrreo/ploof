@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 fn helper(_: ploof.Multipart.FileHandle) []const u8 {
     return "forbidden";

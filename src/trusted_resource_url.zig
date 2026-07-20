@@ -1,5 +1,5 @@
 const std = @import("std");
-const syntax = @import("internal/url_syntax.zig");
+const syntax = @import("internal/url/syntax.zig");
 
 pub const TrustedResourceUrl = opaque {
     pub const ploof_trusted_resource_url = true;

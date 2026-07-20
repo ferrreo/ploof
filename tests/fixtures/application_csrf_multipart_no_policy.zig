@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 const support = @import("csrf_application_support.zig");
 
 const Definition = ploof.Endpoint(.{ .body = ploof.Multipart.decode(.{

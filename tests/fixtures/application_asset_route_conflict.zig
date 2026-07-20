@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 const asset_fixture = @import("html_asset_fixture.zig");
 
 const State = struct {};

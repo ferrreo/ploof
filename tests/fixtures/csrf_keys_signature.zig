@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Origins = ploof.Csrf.OriginSet(1, 64);
 const AppState = struct {

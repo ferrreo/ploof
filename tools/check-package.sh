@@ -33,6 +33,7 @@ if tar -tf "$archive" | grep -Eq \
     exit 1
 fi
 cp "$root/build.zig" "$root/build_fuzz.zig" "$root/build.zig.zon" "$temporary/"
+cp -R "$root/build" "$temporary/"
 
 contents=$(
     cd "$temporary"

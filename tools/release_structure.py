@@ -22,6 +22,11 @@ from release_external_evidence import external_contract
 from release_gate_commands import CANONICAL_GATE_IDS
 from release_notes import PROTOCOL_SUPPORT, validate_source_document
 from release_structure_dependencies import check_dependencies
+from release_structure_fuzz import (
+    check_fuzz_selector,
+    check_test_roots,
+    fuzz_filter_reachable,
+)
 from release_structure_profiles import (
     EXPECTED_ARTIFACT_POLICY,
     EXPECTED_CONTRACTS,
@@ -40,10 +45,18 @@ from release_structure_io import (
 
 
 MARKER_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b")
+ROOT_MANIFESTS = {
+    "benchmark.zig",
+    "compile_failure_api.zig",
+    "fuzz.zig",
+    "proxy_origin.zig",
+    "test.zig",
+    "tsan.zig",
+}
 TYPE_FACTORY_LENGTH_EXCEPTIONS = {
     ("src/application.zig", "Application"),
-    ("src/internal/runtime/worker_live_static.zig", "Enabled"),
-    ("src/internal/runtime/worker_storage.zig", "Storage"),
+    ("src/internal/runtime/worker/live_static.zig", "Enabled"),
+    ("src/internal/runtime/worker/storage.zig", "Storage"),
 }
 EXPECTED_KERNEL_MINIMUMS = {
     "linux-6.1-intel": "6.1.177",
@@ -66,9 +79,7 @@ EXPECTED_SCHEMA_HASHES = {
         "ca7717716ee0c825865db6f49ba8b4833655e49fce4ddc7165866f71d20b8da4"
     ),
 }
-EXPECTED_PROXY_SCRIPT_SHA256 = (
-    "645fd84341587ab3a95f1d36183c32dc6f7a529e08bb606606b3bcc7adb10b09"
-)
+EXPECTED_PROXY_SCRIPT_SHA256 = "645fd84341587ab3a95f1d36183c32dc6f7a529e08bb606606b3bcc7adb10b09"
 
 
 def zig_function_lengths(text: str) -> list[tuple[int, str, int]]:
@@ -176,7 +187,17 @@ def check_package(root: Path, errors: list[str]) -> None:
             continue
         if not (root / str(path)).exists():
             errors.append(f"build.zig.zon: allowlisted path does not exist: {path}")
-    required = {"src", "tools", "tests", "docs", "release", "LICENSE", "SECURITY.md"}
+    required = ROOT_MANIFESTS | {
+        "benchmarks",
+        "fuzz",
+        "src",
+        "tools",
+        "tests",
+        "docs",
+        "release",
+        "LICENSE",
+        "SECURITY.md",
+    }
     missing = required - set(zon["paths"])
     if missing:
         errors.append(f"build.zig.zon: missing package paths: {sorted(missing)}")
@@ -194,10 +215,16 @@ def check_structure(root: Path) -> None:
     check_release_manifests(root, errors)
     check_dependencies(root, errors)
     check_package(root, errors)
+    check_test_roots(root, errors)
+    check_fuzz_selector(root, errors)
     check_test_skips(root, errors)
     source_paths = bounded_paths(chain(
-        root.glob("build*.zig"),
+        root.glob("*.zig"),
+        bounded_tree_files(root, "build", "structure scan", errors, suffixes={".zig"}),
+        bounded_tree_files(root, "benchmarks", "structure scan", errors, suffixes={".zig"}),
+        bounded_tree_files(root, "fuzz", "structure scan", errors, suffixes={".zig"}),
         bounded_tree_files(root, "src", "structure scan", errors, suffixes={".zig"}),
+        bounded_tree_files(root, "tests", "structure scan", errors, suffixes={".zig"}),
         bounded_tree_files(
             root,
             "tools",
@@ -222,14 +249,15 @@ def check_structure(root: Path) -> None:
 
 def check_test_skips(root: Path, errors: list[str]) -> None:
     paths = chain(
-        root.glob("build*.zig"),
+        root.glob("*.zig"),
+        bounded_tree_files(root, "build", "test-skip scan", errors, suffixes={".zig"}),
         *(bounded_tree_files(
             root,
             directory,
             "test-skip scan",
             errors,
             suffixes={".zig"},
-        ) for directory in ("src", "tools", "tests")),
+        ) for directory in ("benchmarks", "fuzz", "src", "tools", "tests")),
     )
     total_bytes = 0
     for path in bounded_paths(paths, "test-skip scan", errors):

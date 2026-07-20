@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Context = ploof.Context(void, ploof.response.standard_head_limits);
 

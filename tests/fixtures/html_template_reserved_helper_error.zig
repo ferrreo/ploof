@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 fn helper(_: bool) error{ResponseChunksExhausted}![]const u8 {
     return error.ResponseChunksExhausted;

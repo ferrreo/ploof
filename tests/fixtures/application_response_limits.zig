@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const maximum = ploof.response.HeadLimits{
     .head_bytes_max = 64,

@@ -140,7 +140,7 @@ fn runStartupFault(fault: StartupFault) noreturn {
 
     const buffer_ring = @import("buffer_ring.zig");
     const config = @import("config.zig");
-    const io_uring_backend = @import("io_uring_backend.zig");
+    const io_uring_backend = @import("io_uring/backend.zig");
     const limits = comptime config.Limits.validate(.{
         .connection_slots = 1,
         .request_slots = 1,

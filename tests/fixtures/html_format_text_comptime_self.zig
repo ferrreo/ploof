@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Value = struct {
     pub fn formatText(comptime _: @This()) ploof.InlineText(8) {

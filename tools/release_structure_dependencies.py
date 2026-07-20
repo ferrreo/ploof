@@ -20,7 +20,8 @@ from release_structure_io import (
 
 IMPORT_RE = re.compile(r'@import\s*\(\s*"((?:\\.|[^"\\])*)"\s*,?\s*\)')
 BUILD_IMPORTS_RE = re.compile(
-    r'''^\s*\.imports\s*=\s*&\.\{\.\{\s*\.name\s*=\s*"(ploof|sigbench)",\s*'''
+    r'''^\s*\.imports\s*=\s*&\.\{\.\{\s*\.name\s*=\s*"(harness_options|'''
+    r'''ploof|sigbench)",\s*'''
     r'''\.module\s*=\s*[^{}\r\n]+\s*\}\},\s*$''',
 )
 
@@ -62,7 +63,10 @@ def check_dependencies(root: Path, errors: list[str]) -> None:
 def scan_sources(root: Path, build_only: set[str], errors: list[str]) -> None:
     paths = bounded_paths(
         chain(
-            root.glob("build*.zig"),
+            root.glob("*.zig"),
+            bounded_tree_files(root, "build", "dependency scan", errors, suffixes={".zig"}),
+            bounded_tree_files(root, "benchmarks", "dependency scan", errors, suffixes={".zig"}),
+            bounded_tree_files(root, "fuzz", "dependency scan", errors, suffixes={".zig"}),
             bounded_tree_files(root, "src", "dependency scan", errors, suffixes={".zig"}),
             bounded_tree_files(root, "tools", "dependency scan", errors, suffixes={".zig"}),
         ),
@@ -109,15 +113,23 @@ def scan_imports(
                     "benchmark-only source"
                 )
             continue
-        seam = path.relative_to(root).as_posix() == "src/testing_facade.zig" and value == "ploof"
+        relative = path.relative_to(root).as_posix()
+        seam = relative == "src/testing/facade.zig" and value == "ploof"
+        harness_seam = relative == "fuzz.zig" and (
+            value == "harness_options"
+        )
         allowed = value in {"std", "builtin"} or value in build_only and benchmark_source(path)
-        if "\\" in value or not (allowed or seam):
+        if "\\" in value or not (allowed or seam or harness_seam):
             errors.append(f"{path.relative_to(root)}:{number}: production import is not local")
 
 
 def check_build_wiring(root: Path, errors: list[str]) -> None:
     texts: dict[str, str] = {}
-    for path in bounded_paths(root.glob("build*.zig"), "build dependency scan", errors):
+    paths = chain(
+        root.glob("build*.zig"),
+        bounded_tree_files(root, "build", "build dependency scan", errors, suffixes={".zig"}),
+    )
+    for path in bounded_paths(paths, "build dependency scan", errors):
         text = read_bounded_text(path, root, errors)
         if text is not None:
             texts[path.name] = text
@@ -158,13 +170,16 @@ def check_module_tables(path: Path, text: str, root: Path, errors: list[str]) ->
     forbidden = (
         "addImport",
         "addAnonymousImport",
-        "addOptions",
         "import_table",
         '@"',
         "@field",
         ".dependency(",
     )
     for number, line in enumerate(text.splitlines(), 1):
+        if "addOptions" in line and line.strip() != "const options = b.addOptions();":
+            errors.append(
+                f"{path.relative_to(root)}:{number}: dynamic build options are not allowed"
+            )
         if ".imports" in line and BUILD_IMPORTS_RE.fullmatch(line) is None:
             errors.append(f"{path.relative_to(root)}:{number}: module import table is not allowed")
         if "lazyDependency" in line and line.strip() != (

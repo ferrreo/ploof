@@ -1,6 +1,6 @@
 const std = @import("std");
-const bundle = @import("internal/asset_bundle.zig");
-const syntax = @import("internal/url_syntax.zig");
+const bundle = @import("internal/asset/bundle.zig");
+const syntax = @import("internal/url/syntax.zig");
 
 pub const MediaKind = bundle.MediaKind;
 pub const format_version = bundle.format_version;

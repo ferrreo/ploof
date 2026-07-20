@@ -1,6 +1,6 @@
 const std = @import("std");
 const cors = @import("../../cors.zig");
-const fuzz_support = @import("fuzz_support.zig");
+const fuzz_support = @import("testing/smith.zig");
 const request_cors = @import("request_cors.zig");
 const response_headers = @import("response_headers.zig");
 const syntax = @import("syntax.zig");

@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 fn handler(_: *u8, _: ploof.Body.Bytes) void {}
 

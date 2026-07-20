@@ -1,5 +1,5 @@
 const std = @import("std");
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Value = error{Unavailable}!std.mem.Allocator;
 

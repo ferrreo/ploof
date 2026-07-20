@@ -3,25 +3,25 @@ const std = @import("std");
 const forwarding = @import("../../forwarding.zig");
 const lifecycle = @import("../../lifecycle.zig");
 const accept_controller = @import("accept_controller.zig");
-const connection_driver = @import("connection_driver.zig");
-const connection_observation = @import("connection_observation.zig");
+const connection_driver = @import("connection/driver.zig");
+const connection_observation = @import("connection/observation.zig");
 const reactor = @import("reactor.zig");
-const startup_diagnostic = @import("../multipart_file_sink_startup_diagnostic.zig");
+const startup_diagnostic = @import("../multipart/file_sink_startup_diagnostic.zig");
 const runtime_time = @import("time.zig");
-const worker_completion = @import("worker_completion.zig");
-const worker_cleanup = @import("worker_cleanup.zig");
-const worker_completion_route = @import("worker_completion_route.zig");
-const worker_fatal = @import("worker_fatal.zig");
-const worker_gzip_lifecycle = @import("worker_gzip_lifecycle.zig");
-const worker_invariants = @import("worker_invariants.zig");
-const worker_initialization = @import("worker_initialization.zig");
-const worker_metrics = @import("worker_metrics.zig");
-const worker_stream_runtime = @import("worker_stream_runtime.zig");
-const worker_time = @import("worker_time.zig");
+const worker_completion = @import("worker/completion.zig");
+const worker_cleanup = @import("worker/cleanup.zig");
+const worker_completion_route = @import("worker/completion_route.zig");
+const worker_fatal = @import("worker/fatal.zig");
+const worker_gzip_lifecycle = @import("worker/gzip_lifecycle.zig");
+const worker_invariants = @import("worker/invariants.zig");
+const worker_initialization = @import("worker/initialization.zig");
+const worker_metrics = @import("worker/metrics.zig");
+const worker_stream_runtime = @import("worker/stream_runtime.zig");
+const worker_time = @import("worker/time.zig");
 
 pub const MetricsSnapshot = worker_metrics.Snapshot;
 pub const UploadMetricsSnapshot = worker_metrics.UploadMetricsSnapshot;
-pub const UploadRouteMetricsSnapshot = @import("worker_upload_transport.zig").RouteMetricsSnapshot;
+pub const UploadRouteMetricsSnapshot = @import("worker/upload_transport.zig").RouteMetricsSnapshot;
 pub const Phase = worker_cleanup.Phase;
 
 pub const Step = enum(u8) {
@@ -431,7 +431,7 @@ pub fn ObservedConfiguredWorker(
 
         pub fn startupFailure(
             self: *const Self,
-        ) ?@import("worker_live_static.zig").StartupDiagnostic {
+        ) ?@import("worker/live_static.zig").StartupDiagnostic {
             return self.driver.liveStaticStartupDiagnostic();
         }
 

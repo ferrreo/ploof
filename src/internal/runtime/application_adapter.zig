@@ -1,6 +1,6 @@
 const std = @import("std");
 const application = @import("../../application.zig");
-const application_body = @import("../application_body.zig");
+const application_body = @import("../application/body.zig");
 const multipart_boundary = @import("../multipart/boundary.zig");
 const query = @import("../http1/query.zig");
 const request_accept_encoding = @import("../http1/request_accept_encoding.zig");

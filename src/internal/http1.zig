@@ -33,14 +33,6 @@ pub const security_canaries = @import("http1/security_canaries.zig");
 pub const status = @import("http1/status.zig");
 pub const syntax = @import("http1/syntax.zig");
 
-test {
-    _ = @import("http1/request_trailers_fuzz.zig");
-    _ = @import("http1/request_pipeline_test.zig");
-    _ = @import("http1/response_exact_test.zig");
-    _ = @import("http1/response_fuzz.zig");
-    _ = @import("http1/response_identity_test.zig");
-}
-
 const ping_request = "GET /ping HTTP/1.1\r\nHost: example.test\r\n\r\n";
 const ping_response =
     "HTTP/1.1 200 OK\r\n" ++

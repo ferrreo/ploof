@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const BrokenDecoder = @TypeOf(ploof.Json.typed(struct {
     bytes: [32]u8,

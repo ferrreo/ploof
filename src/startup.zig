@@ -1,9 +1,9 @@
 const std = @import("std");
 const linux = std.os.linux;
-const application_csrf = @import("internal/application_csrf.zig");
-const upload_catalog = @import("internal/application_upload_catalog.zig");
-const upload_route_metrics = @import("internal/runtime/worker_upload_route_metrics.zig");
-const probe = @import("internal/io_uring_probe.zig");
+const application_csrf = @import("internal/application/csrf.zig");
+const upload_catalog = @import("internal/application/upload_catalog.zig");
+const upload_route_metrics = @import("internal/runtime/worker/upload_route_metrics.zig");
+const probe = @import("internal/io_uring/probe.zig");
 
 pub const RingProfile = probe.RingProfile;
 pub const ProfileIssue = probe.ProfileIssue;
