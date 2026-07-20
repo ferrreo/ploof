@@ -1,5 +1,5 @@
 const std = @import("std");
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 fn helper(_: std.Io.Writer) []const u8 {
     return "forbidden";

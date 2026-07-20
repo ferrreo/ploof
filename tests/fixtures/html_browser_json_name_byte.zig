@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 pub fn main() void {
     var scratch: [32]u8 = undefined;

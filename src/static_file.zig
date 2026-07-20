@@ -4,9 +4,9 @@ const media_type = @import("internal/http1/media_type.zig");
 const response = @import("response.zig");
 const route = @import("route.zig");
 const syntax = @import("internal/http1/syntax.zig");
-const static_http = @import("internal/static_http.zig");
-const static_media = @import("internal/static_media.zig");
-const static_path = @import("internal/static_path.zig");
+const static_http = @import("internal/static/http.zig");
+const static_media = @import("internal/static/media.zig");
+const static_path = @import("internal/static/path.zig");
 
 pub const mount_bytes_hard_max: u16 = 4 * 1024;
 pub const root_bytes_hard_max: u16 = 4 * 1024;

@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Broken = struct {
     pub fn jsonParse(comptime _: anytype) ploof.Json.ParseError!@This() {

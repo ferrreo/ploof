@@ -1,5 +1,5 @@
 const std = @import("std");
-const syntax = @import("internal/url_syntax.zig");
+const syntax = @import("internal/url/syntax.zig");
 
 pub const url_bytes_hard_max = syntax.url_bytes_hard_max;
 pub const url_bytes_standard_max = syntax.url_bytes_standard_max;

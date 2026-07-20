@@ -163,12 +163,12 @@ const http1_targets = [_]FuzzTarget{
     },
     .{
         .name = "request_trailers_fuzz",
-        .file = "src/internal/http1/request_trailers_fuzz.zig",
+        .file = "fuzz/internal/http1/request_trailers_fuzz.zig",
         .filter = "request trailer declaration and fragmentation fuzz",
     },
     .{
         .name = "response_fuzz",
-        .file = "src/internal/http1/response_fuzz.zig",
+        .file = "fuzz/internal/http1/response_fuzz.zig",
         .filter = "response serialization invariants fuzz",
     },
     .{
@@ -183,32 +183,32 @@ const http1_targets = [_]FuzzTarget{
     },
     .{
         .name = "flat_binding",
-        .file = "src/flat_binding_test.zig",
+        .file = "tests/unit/flat_binding_test.zig",
         .filter = "flat parser fragmentation fuzz is result-equivalent",
     },
     .{
         .name = "json_validate",
-        .file = "src/json_validate_test.zig",
+        .file = "tests/unit/json_validate_test.zig",
         .filter = "strict JSON fragmentation fuzz has one semantic outcome",
     },
     .{
         .name = "json_decode",
-        .file = "src/json_decode_test.zig",
+        .file = "tests/unit/json_decode_test.zig",
         .filter = "dynamic decode fragmentation fuzz has one semantic outcome",
     },
     .{
         .name = "json_parse",
-        .file = "src/json_decode_test.zig",
+        .file = "tests/unit/json_decode_test.zig",
         .filter = "jsonParse fragmentation fuzz has one semantic outcome",
     },
     .{
         .name = "json_parse_structured",
-        .file = "src/json_parse_fuzz_check.zig",
+        .file = "fuzz/json_parse_fuzz_check.zig",
         .filter = "structured jsonParse fuzz is fragmentation and memory-bound equivalent",
     },
     .{
         .name = "json_encode",
-        .file = "src/json_encode_fuzz_check.zig",
+        .file = "fuzz/json_encode_fuzz_check.zig",
         .filter = "JSON string encoder fuzz emits one strict document or invalid UTF-8",
     },
     .{
@@ -228,39 +228,39 @@ const http1_targets = [_]FuzzTarget{
     },
     .{
         .name = "proxy_protocol_v2",
-        .file = "src/proxy_protocol_v2_fuzz_check.zig",
+        .file = "fuzz/proxy_protocol_v2_fuzz_check.zig",
         .filter = "PROXY v2 fragmentation fuzz is result and consumed-count equivalent",
     },
     // Zig test filters use substring matching. Separate roots keep Forwarded from
     // selecting X-Forwarded and fighting over the same fuzz corpus lock.
     .{
         .name = "authority",
-        .file = "src/authority_fuzz_check.zig",
+        .file = "fuzz/authority_fuzz_check.zig",
         .filter = "authority parser has deterministic variable-length outcomes",
     },
     .{
         .name = "request_forwarded",
-        .file = "src/request_forwarded_fuzz_check.zig",
+        .file = "fuzz/request_forwarded_fuzz_check.zig",
         .filter = "Forwarded parser variable-length fuzz is deterministic and bounded",
     },
     .{
         .name = "request_x_forwarded",
-        .file = "src/request_x_forwarded_fuzz_check.zig",
+        .file = "fuzz/request_x_forwarded_fuzz_check.zig",
         .filter = "X-Forwarded parser variable-length fuzz is deterministic and bounded",
     },
     .{
         .name = "forwarding_resolver",
-        .file = "src/forwarding_resolver_fuzz_check.zig",
+        .file = "fuzz/forwarding_resolver_fuzz_check.zig",
         .filter = "forwarding resolver structured fuzz preserves trusted suffix identity",
     },
     .{
         .name = "request_cors",
-        .file = "src/cors_fuzz_check.zig",
+        .file = "fuzz/cors_fuzz_check.zig",
         .filter = "CORS origin and header grammar fuzz is deterministic and bounded",
     },
     .{
         .name = "response_cors_fields",
-        .file = "src/cors_fuzz_check.zig",
+        .file = "fuzz/cors_fuzz_check.zig",
         .filter = "CORS decisions fuzz never reflect invalid origin or header bytes",
     },
 };
@@ -268,17 +268,17 @@ const http1_targets = [_]FuzzTarget{
 const multipart_targets = [_]FuzzTarget{
     .{
         .name = "multipart-boundary",
-        .file = "src/multipart_fuzz_check.zig",
+        .file = "fuzz/multipart_fuzz_check.zig",
         .filter = "multipart boundary extraction is deterministic and bounded",
     },
     .{
         .name = "multipart-part-headers",
-        .file = "src/multipart_fuzz_check.zig",
+        .file = "fuzz/multipart_fuzz_check.zig",
         .filter = "multipart part-header parsing is deterministic and bounded",
     },
     .{
         .name = "multipart-parser",
-        .file = "src/multipart_fuzz_check.zig",
+        .file = "fuzz/multipart_fuzz_check.zig",
         .filter = "multipart streaming parser fuzz preserves fragmentation and state invariants",
     },
 };
@@ -286,12 +286,12 @@ const multipart_targets = [_]FuzzTarget{
 const csrf_targets = [_]FuzzTarget{
     .{
         .name = "csrf-core",
-        .file = "src/csrf_fuzz_check.zig",
+        .file = "fuzz/csrf_fuzz_check.zig",
         .filter = "CSRF token cookie and origin parsers are deterministic and canonical",
     },
     .{
         .name = "csrf-multipart",
-        .file = "src/multipart_csrf_fuzz_check.zig",
+        .file = "fuzz/multipart_csrf_fuzz_check.zig",
         .filter = "multipart CSRF parser fuzz preserves token admission invariants",
     },
 };
@@ -299,12 +299,12 @@ const csrf_targets = [_]FuzzTarget{
 const html_targets = [_]FuzzTarget{
     .{
         .name = "html-render",
-        .file = "src/html_render_fuzz_check.zig",
+        .file = "fuzz/html_render_fuzz_check.zig",
         .filter = "HTML rendering differential and browser-boundary fuzz",
     },
     .{
         .name = "html-template",
-        .file = "src/html_template_fuzz_check.zig",
+        .file = "fuzz/html_template_fuzz_check.zig",
         .filter = "typed template rendering differential fuzz",
     },
 };
@@ -312,12 +312,12 @@ const html_targets = [_]FuzzTarget{
 const url_targets = [_]FuzzTarget{
     .{
         .name = "url",
-        .file = "src/url_fuzz_check.zig",
+        .file = "fuzz/url_fuzz_check.zig",
         .filter = "URL parsing and trust tables have deterministic bounded outcomes",
     },
     .{
         .name = "url-for",
-        .file = "src/url_for_fuzz_check.zig",
+        .file = "fuzz/url_for_fuzz_check.zig",
         .filter = "urlFor path and query encoding has deterministic bounded outcomes",
     },
 };
@@ -325,17 +325,17 @@ const url_targets = [_]FuzzTarget{
 const upload_targets = [_]FuzzTarget{
     .{
         .name = "storage-key",
-        .file = "src/multipart_storage_key_fuzz_check.zig",
+        .file = "fuzz/multipart_storage_key_fuzz_check.zig",
         .filter = "multipart StorageKey fuzz is canonical deterministic and bounded",
     },
     .{
         .name = "transaction",
-        .file = "src/multipart_upload_transaction_fuzz_check.zig",
+        .file = "fuzz/multipart_upload_transaction_fuzz_check.zig",
         .filter = "multipart upload transaction structured schedules are deterministic and bounded",
     },
     .{
         .name = "worker-transport",
-        .file = "src/worker_upload_transport_fuzz_check.zig",
+        .file = "fuzz/worker_upload_transport_fuzz_check.zig",
         .filter = "worker upload controller structured ownership schedule fuzz",
         .secondary_family = .upload_worker,
     },
@@ -344,96 +344,96 @@ const upload_targets = [_]FuzzTarget{
 const runtime_targets = [_]FuzzTarget{
     .{
         .name = "server-lifecycle",
-        .file = "src/server_lifecycle_fuzz_check.zig",
+        .file = "fuzz/server_lifecycle_fuzz_check.zig",
         .filter = "server lifecycle Smith preserves irreversible transitions and exact reports",
     },
     .{
         .name = "response-chunks",
-        .file = "src/worker_response_chunks_fuzz_check.zig",
+        .file = "fuzz/worker_response_chunks_fuzz_check.zig",
         .filter = "response chunk transaction structured differential fuzz",
     },
     .{
         .name = "runtime",
-        .file = "src/runtime_fuzz_check.zig",
+        .file = "fuzz/runtime_fuzz_check.zig",
         .filter = "worker bounded state machine fuzz drains every valid schedule",
     },
     .{
         .name = "fixed-identity",
-        .file = "src/internal/runtime/connection_body.zig",
+        .file = "src/internal/runtime/connection/body.zig",
         .filter = "fixed identity fragmentation differential fuzz",
     },
     .{
         .name = "chunked-identity",
-        .file = "src/chunked_body_fuzz_check.zig",
+        .file = "fuzz/chunked_body_fuzz_check.zig",
         .filter = "chunked identity orchestration fragmentation differential fuzz",
     },
     .{
         .name = "gzip",
-        .file = "src/internal/runtime/gzip_decoder_fuzz_check.zig",
+        .file = "fuzz/internal/runtime/gzip_decoder_fuzz_check.zig",
         .filter = "strict gzip framing differential and security fuzz",
     },
     .{
         .name = "gzip-encoder",
-        .file = "src/gzip_encoder_fuzz_check.zig",
+        .file = "fuzz/gzip_encoder_fuzz_check.zig",
         .filter = "finite gzip encoder bound and roundtrip fuzz",
     },
     .{
         .name = "response-gzip-serializer",
-        .file = "src/application_response_gzip_fuzz_check.zig",
+        .file = "fuzz/application_response_gzip_fuzz_check.zig",
         .filter = "finite response gzip serializer bounded composition fuzz",
     },
     .{
         .name = "stream-response-head",
-        .file = "src/application_stream_output_fuzz_check.zig",
+        .file = "fuzz/application_stream_output_fuzz_check.zig",
         .filter = "stream response head serializer bounded composition fuzz",
         .secondary_family = .stream_response,
     },
     .{
         .name = "gzip-input-queue",
-        .file = "src/internal/runtime/gzip_input_queue.zig",
+        .file = "src/internal/runtime/gzip/input_queue.zig",
         .filter = "gzip input queue bounded wrap and terminal invariants fuzz",
     },
     .{
         .name = "gzip-decoder-pool",
-        .file = "src/internal/runtime/gzip_decoder_pool_fuzz_check.zig",
+        .file = "fuzz/internal/runtime/gzip_decoder_pool_fuzz_check.zig",
         .filter = "gzip decoder pool persistent-thread structured differential fuzz",
     },
     .{
         .name = "fixed-body-driver",
-        .file = "src/body_driver_fuzz_check.zig",
+        .file = "fuzz/body_driver_fuzz_check.zig",
         .filter = "fixed body driver bounded state transitions fuzz",
     },
     .{
         .name = "gzip-transport",
-        .file = "src/gzip_transport_fuzz_check.zig",
+        .file = "fuzz/gzip_transport_fuzz_check.zig",
         .filter = "gzip transport structured fragmentation and security fuzz",
     },
     .{
         .name = "gzip-driver-schedule",
-        .file = "src/gzip_schedule_fuzz_check.zig",
+        .file = "fuzz/gzip_schedule_fuzz_check.zig",
         .filter = "gzip production driver bounded completion schedule fuzz",
     },
     .{
         .name = "stream-wake-schedule",
-        .file = "src/stream_wake_fuzz_check.zig",
+        .file = "fuzz/stream_wake_fuzz_check.zig",
         .filter = "stream wake bounded publication schedule fuzz",
         .secondary_family = .stream_wake,
     },
     .{
         .name = "stream-lifecycle-schedule",
-        .file = "src/stream_lifecycle_fuzz_check.zig",
+        .file = "fuzz/stream_lifecycle_fuzz_check.zig",
         .filter = "stream lifecycle bounded ownership schedule fuzz",
         .secondary_family = .stream_lifecycle,
     },
     .{
         .name = "stream-suppression-lifecycle",
-        .file = "src/stream_lifecycle_fuzz_check.zig",
+        .file = "fuzz/stream_lifecycle_fuzz_check.zig",
         .filter = "suppression lifecycle fuzz",
         .secondary_family = .stream_lifecycle,
     },
     .{
         .name = "stream-driver-schedule",
-        .file = "src/stream_driver_fuzz_check.zig",
+        .file = "fuzz/stream_driver_fuzz_check.zig",
         .filter = "stream driver bounded send wake cancellation schedule fuzz",
         .secondary_family = .stream_driver,
     },
@@ -442,19 +442,23 @@ const runtime_targets = [_]FuzzTarget{
 const routing_targets = [_]FuzzTarget{
     .{
         .name = "routing",
-        .file = "src/route_graph_check.zig",
+        .file = "fuzz/route_graph_check.zig",
         .filter = "route graph bounded differential fuzz",
     },
 };
 
 const static_targets = [_]FuzzTarget{
-    .{ .name = "live", .file = "src/live_static_schedule_fuzz_check.zig", .filter = "live static" },
-    .{ .name = "static-path", .file = "src/static_file_fuzz_check.zig", .filter = "static path" },
+    .{
+        .name = "live",
+        .file = "fuzz/live_static_schedule_fuzz_check.zig",
+        .filter = "live static",
+    },
+    .{ .name = "static-path", .file = "fuzz/static_file_fuzz_check.zig", .filter = "static path" },
 };
 const asset_targets = [_]FuzzTarget{
     .{
         .name = "embedded-assets",
-        .file = "src/asset_http_fuzz_check.zig",
+        .file = "fuzz/asset_http_fuzz_check.zig",
         .filter = "embedded asset negotiation and conditional policy fuzz is bounded",
     },
 };
@@ -462,7 +466,7 @@ const asset_targets = [_]FuzzTarget{
 const observability_targets = [_]FuzzTarget{
     .{
         .name = "observability",
-        .file = "src/observability_fuzz_check.zig",
+        .file = "fuzz/observability_fuzz_check.zig",
         .filter = "observability pressure Smith preserves bounded queue and complete epochs",
     },
 };
@@ -655,11 +659,14 @@ fn addFuzzRun(
     optimize: std.builtin.OptimizeMode,
     comptime case: FuzzTarget,
 ) *std.Build.Step {
+    const options = b.addOptions();
+    options.addOption([]const u8, "target", case.file);
     const module = b.createModule(.{
-        .root_source_file = b.path(case.file),
+        .root_source_file = b.path("fuzz.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = false,
+        .imports = &.{.{ .name = "harness_options", .module = options.createModule() }},
         // Zig 0.16's fuzz runner mismatches its stack-trace types.
         .error_tracing = false,
     });

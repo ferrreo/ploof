@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 fn helper(_: *const volatile u32) []const u8 {
     return "forbidden";

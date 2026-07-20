@@ -1,10 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const fuzz_support = @import("fuzz_support.zig");
+const fuzz_support = @import("testing/smith.zig");
 const limits_module = @import("limits.zig");
 const request_head_ingest = @import("request_head_ingest.zig");
 const request_head_oracle = if (builtin.is_test)
-    @import("request_head_oracle_test.zig")
+    @import("testing/request_head_oracle.zig")
 else
     struct {};
 const request_target = @import("request_target.zig");

@@ -1,6 +1,6 @@
 const std = @import("std");
 const reactor = @import("reactor.zig");
-const upload_file_table = @import("upload_file_table.zig");
+const upload_file_table = @import("upload/file_table.zig");
 
 pub const file_handles_hard_max: u32 = 1 << 16;
 

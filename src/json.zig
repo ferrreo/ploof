@@ -1,12 +1,12 @@
-const encoder = @import("internal/json_encode.zig");
-const decoder = @import("internal/json_decode.zig");
-const decode_layout = @import("internal/json_decode_layout.zig");
-const decode_typed = @import("internal/json_decode_typed.zig");
-const parse_hook = @import("internal/json_parse_hook.zig");
-const schema = @import("internal/json_schema.zig");
-const token_source = @import("internal/json_token_source.zig");
-const types = @import("internal/json_types.zig");
-const validate = @import("internal/json_validate.zig");
+const encoder = @import("internal/json/encode.zig");
+const decoder = @import("internal/json/decode.zig");
+const decode_layout = @import("internal/json/decode_layout.zig");
+const decode_typed = @import("internal/json/decode_typed.zig");
+const parse_hook = @import("internal/json/parse_hook.zig");
+const schema = @import("internal/json/schema.zig");
+const token_source = @import("internal/json/token_source.zig");
+const types = @import("internal/json/types.zig");
+const validate = @import("internal/json/validate.zig");
 const body = @import("body.zig");
 
 pub const depth_hard_max = types.depth_hard_max;
@@ -111,8 +111,8 @@ pub fn encodeWith(
 }
 
 test {
-    _ = @import("internal/json_types.zig");
-    _ = @import("internal/json_schema.zig");
+    _ = @import("internal/json/types.zig");
+    _ = @import("internal/json/schema.zig");
 }
 
 test "typed and dynamic decoder declarations retain bounded policy" {

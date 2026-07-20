@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Page = ploof.HtmlTemplate.Template(.{
     .View = struct { refresh: bool, target: []const u8 },

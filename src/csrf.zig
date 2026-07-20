@@ -1,8 +1,8 @@
 const std = @import("std");
-const application_types = @import("internal/application_types.zig");
-const csrf_config = @import("internal/csrf_config.zig");
-const csrf_origin = @import("internal/csrf_origin.zig");
-const csrf_request = @import("internal/csrf_request.zig");
+const application_types = @import("internal/application/types.zig");
+const csrf_config = @import("internal/csrf/config.zig");
+const csrf_origin = @import("internal/csrf/origin.zig");
+const csrf_request = @import("internal/csrf/request.zig");
 const multipart = @import("multipart.zig");
 const response = @import("response.zig");
 

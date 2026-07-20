@@ -1,5 +1,5 @@
 const std = @import("std");
-const fuzz_support = @import("fuzz_support.zig");
+const fuzz_support = @import("testing/smith.zig");
 const status_module = @import("status.zig");
 const syntax = @import("syntax.zig");
 pub const size_line_bytes_max: usize = 1024;

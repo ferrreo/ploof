@@ -1,6 +1,6 @@
 const std = @import("std");
 const address = @import("../../address.zig");
-const reactor_file = @import("reactor_file.zig");
+const reactor_file = @import("reactor/file.zig");
 
 pub const max_worker_index: u16 = 0x0fff;
 pub const max_sequence: u16 = 0x7fff;

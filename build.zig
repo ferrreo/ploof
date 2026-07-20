@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const build_compile_failures = @import("build_compile_failures.zig");
+const build_compile_failures = @import("build/compile_failures.zig");
 const build_fuzz = @import("build_fuzz.zig");
 
 const required_zig = std.SemanticVersion{
@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/ploof.zig"),
     });
     _ = b.addModule("ploof_testing", .{
-        .root_source_file = b.path("src/testing_facade.zig"),
+        .root_source_file = b.path("src/testing/facade.zig"),
         .imports = &.{.{ .name = "ploof", .module = ploof }},
     });
 
@@ -46,13 +46,17 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run all current correctness checks");
     const format_check = b.addFmt(.{
         .paths = &.{
+            "benchmark.zig",
             "build.zig",
-            "build_compile_failure_case.zig",
-            "build_compile_failures.zig",
-            "build_compile_failures_core.zig",
-            "build_compile_failures_html.zig",
-            "build_compile_failures_multipart.zig",
+            "build",
             "build_fuzz.zig",
+            "compile_failure_api.zig",
+            "fuzz.zig",
+            "proxy_origin.zig",
+            "test.zig",
+            "tsan.zig",
+            "benchmarks",
+            "fuzz",
             "src",
             "tests",
             "tools/asset_compiler.zig",
@@ -83,13 +87,11 @@ pub fn build(b: *std.Build) void {
     addUnitTests(b, test_step, target, .Debug);
     addUnitTests(b, test_step, target, .ReleaseSafe);
     addUnitTests(b, test_step, target, .ReleaseFast);
-    addRouteScaleChecks(b, test_step, target);
     addThreadSanitizerTests(b, test_step);
     addTargetDiagnosticTests(b, test_step);
     addLibcFreeCheck(b, test_step, ploof, target);
     addIoUringProbeChecks(b, test_step, ploof, target);
     addServerLifecycleChecks(b, test_step, ploof, target);
-    addFileSinkIoUringIntegrationTests(b, test_step, target);
     addPackageCheck(b, test_step);
     addPackageApiCheck(b, test_step);
     addAssetCompilerChecks(b, test_step, assets);
@@ -137,7 +139,7 @@ fn addLoadDriverChecks(
         const origin = b.addExecutable(.{
             .name = b.fmt("ploof-load-origin-{s}", .{@tagName(optimize)}),
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/proxy_interop_origin_main.zig"),
+                .root_source_file = b.path("proxy_origin.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = false,
@@ -195,26 +197,6 @@ fn addAssetCompilerChecks(
     test_step.dependOn(&fixture.step);
 }
 
-fn addFileSinkIoUringIntegrationTests(
-    b: *std.Build,
-    test_step: *std.Build.Step,
-    target: std.Build.ResolvedTarget,
-) void {
-    inline for (correctness_modes) |optimize| {
-        const module = b.createModule(.{
-            .root_source_file = b.path("src/multipart_file_sink_io_uring_integration_test.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = false,
-        });
-        const tests = b.addTest(.{
-            .name = b.fmt("multipart-file-sink-io-uring-{s}", .{@tagName(optimize)}),
-            .root_module = module,
-        });
-        test_step.dependOn(&b.addRunArtifact(tests).step);
-    }
-}
-
 fn addProxyInteropStep(b: *std.Build, target: std.Build.ResolvedTarget) void {
     const required = b.option(
         bool,
@@ -232,7 +214,7 @@ fn addProxyInteropStep(b: *std.Build, target: std.Build.ResolvedTarget) void {
         const origin = b.addExecutable(.{
             .name = b.fmt("ploof-proxy-interop-origin-{s}", .{@tagName(optimize)}),
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/proxy_interop_origin_main.zig"),
+                .root_source_file = b.path("proxy_origin.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = false,
@@ -260,13 +242,12 @@ fn addThreadSanitizerTests(
     });
     inline for (correctness_modes) |optimize| {
         const module = b.createModule(.{
-            .root_source_file = b.path("src/runtime_tsan_test.zig"),
+            .root_source_file = b.path("tsan.zig"),
             .target = target,
             .optimize = optimize,
-            // ThreadSanitizer's runtime requires libc; production remains libc-free.
             .link_libc = true,
-            .sanitize_thread = true,
         });
+        module.sanitize_thread = true;
         const tests = b.addTest(.{
             .name = b.fmt("runtime-tsan-{s}", .{@tagName(optimize)}),
             .root_module = module,
@@ -287,7 +268,7 @@ fn addBenchmarkSteps(
             .optimize = optimize,
         }) orelse return;
         const module = b.createModule(.{
-            .root_source_file = b.path("src/benchmark.zig"),
+            .root_source_file = b.path("benchmark.zig"),
             .target = target,
             .optimize = optimize,
             .link_libc = false,
@@ -398,6 +379,12 @@ fn addUnitTests(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) void {
+    const production_tests_module = b.createModule(.{
+        .root_source_file = b.path("test.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = false,
+    });
     const production = b.createModule(.{
         .root_source_file = b.path("src/ploof.zig"),
         .target = target,
@@ -405,37 +392,17 @@ fn addUnitTests(
         .link_libc = false,
     });
     const testing = b.createModule(.{
-        .root_source_file = b.path("src/testing_facade.zig"),
+        .root_source_file = b.path("src/testing/facade.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = false,
         .imports = &.{.{ .name = "ploof", .module = production }},
     });
 
-    const production_tests = b.addTest(.{ .root_module = production });
+    const production_tests = b.addTest(.{ .root_module = production_tests_module });
     const testing_tests = b.addTest(.{ .root_module = testing });
     test_step.dependOn(&b.addRunArtifact(production_tests).step);
     test_step.dependOn(&b.addRunArtifact(testing_tests).step);
-}
-
-fn addRouteScaleChecks(
-    b: *std.Build,
-    test_step: *std.Build.Step,
-    target: std.Build.ResolvedTarget,
-) void {
-    inline for (correctness_modes) |optimize| {
-        const tests = b.addTest(.{
-            .name = b.fmt("route-scale-{s}", .{@tagName(optimize)}),
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/route_graph_check.zig"),
-                .target = target,
-                .optimize = optimize,
-                .link_libc = false,
-            }),
-            .filters = &.{"route graph scale"},
-        });
-        test_step.dependOn(&b.addRunArtifact(tests).step);
-    }
 }
 
 fn addTargetDiagnosticTests(b: *std.Build, test_step: *std.Build.Step) void {

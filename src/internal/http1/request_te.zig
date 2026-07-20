@@ -1,5 +1,5 @@
 const std = @import("std");
-const fuzz_support = @import("fuzz_support.zig");
+const fuzz_support = @import("testing/smith.zig");
 const request_head = @import("request_head.zig");
 const status_module = @import("status.zig");
 const syntax = @import("syntax.zig");

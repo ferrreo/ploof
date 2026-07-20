@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const Definition = ploof.Endpoint(.{ .body = ploof.Multipart.decode(.{
     .upload = ploof.Multipart.file(

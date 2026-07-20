@@ -1,5 +1,5 @@
 const std = @import("std");
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 
 const State = struct {};
 const Context = ploof.Context(State, ploof.response.standard_head_limits);

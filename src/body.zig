@@ -1,5 +1,5 @@
 const std = @import("std");
-const fuzz_support = @import("internal/http1/fuzz_support.zig");
+const fuzz_support = @import("internal/http1/testing/smith.zig");
 const syntax = @import("internal/http1/syntax.zig");
 const input_body = @import("input_body.zig");
 

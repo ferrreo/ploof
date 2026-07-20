@@ -51,11 +51,41 @@ class ReleaseToolingTest(unittest.TestCase):
 
     def create_fixture(self) -> None:
         for directory in (
-            "src", "tools", "tests", "docs", "release", ".github/workflows",
+            "benchmarks", "build", "fuzz", "src", "tools", "tests/unit", "docs",
+            "release", ".github/workflows",
         ):
             (self.root / directory).mkdir(parents=True)
         self.write("build.zig", fixture_build())
+        for path in (
+            "benchmark.zig", "compile_failure_api.zig", "fuzz.zig",
+            "proxy_origin.zig",
+        ):
+            self.write(path, "pub const fixture = true;\n")
+        self.write(
+            "test.zig",
+            'test {\n'
+            '    std.testing.refAllDecls(ploof);\n'
+            '    _ = @import("tests/root.zig");\n'
+            '    _ = @import("fuzz/root.zig");\n'
+            '}\n',
+        )
+        self.write(
+            "tsan.zig",
+            'test {\n'
+            '    _ = @import("tests/unit/runtime_tsan_test.zig");\n'
+            '}\n',
+        )
+        self.write("tests/unit/runtime_tsan_test.zig", "test {}\n")
+        self.write("fuzz/root.zig", "test {\n}\n")
+        self.write("fuzz/targets.zig", "pub const fixture = true;\n")
+        self.write(
+            "tests/root.zig",
+            'test {\n'
+            '    _ = @import("unit/runtime_tsan_test.zig");\n'
+            '}\n',
+        )
         self.write("src/ploof.zig", "pub const version = \"fixture\";\n")
+        self.write("benchmarks/benchmark.zig", 'const dependency = @import("sigbench");\n')
         self.write("tools/fixture.zig", "pub fn main() void {}\n")
         for path in LOAD_DRIVER_SOURCE_PATHS:
             self.write(path, (ROOT / path).read_text(encoding="utf-8"))
@@ -1308,6 +1338,47 @@ class ReleaseToolingTest(unittest.TestCase):
         ):
             self.write(f"release/{name}", (ROOT / "release" / name).read_text())
         release_structure.check_structure(self.root)
+        self.write("tests/unit/unlisted.zig", "test {}\n")
+        with (self.root / "tests/root.zig").open("a", encoding="utf-8") as root_file:
+            root_file.write(
+                '// @import("unit/unlisted.zig")\n'
+                '/* _ = @import("unit/unlisted.zig"); */\n'
+            )
+        with self.assertRaisesRegex(ReleaseError, "tests/root.zig: missing imports"):
+            release_structure.check_structure(self.root)
+        with (self.root / "tests/root.zig").open("a", encoding="utf-8") as root_file:
+            root_file.write(
+                'fn never() void { _ = @import("unit/unlisted.zig"); }\n'
+            )
+        with self.assertRaisesRegex(ReleaseError, "tests/root.zig: root body"):
+            release_structure.check_structure(self.root)
+        (self.root / "tests/unit/unlisted.zig").unlink()
+        self.write(
+            "tests/root.zig",
+            'test {\n'
+            '    _ = @import("unit/runtime_tsan_test.zig");\n'
+            '}\n',
+        )
+        self.write("fuzz/unlisted.zig", "test {}\n")
+        with self.assertRaisesRegex(ReleaseError, "fuzz/root.zig: missing imports"):
+            release_structure.check_structure(self.root)
+        (self.root / "fuzz/unlisted.zig").unlink()
+        self.write(
+            "test.zig",
+            'test { _ = @import("tests/root.zig"); }\n'
+            '/* _ = @import("fuzz/root.zig"); */\n'
+            'fn never() void { _ = @import("fuzz/root.zig"); }\n',
+        )
+        with self.assertRaisesRegex(ReleaseError, "test.zig: test root body"):
+            release_structure.check_structure(self.root)
+        self.write(
+            "test.zig",
+            'test {\n'
+            '    std.testing.refAllDecls(ploof);\n'
+            '    _ = @import("tests/root.zig");\n'
+            '    _ = @import("fuzz/root.zig");\n'
+            '}\n',
+        )
         release.write_json(
             self.root / "release/evidence.schema.json",
             {"$schema": "https://json-schema.org/draft/2020-12/schema"},
@@ -1392,10 +1463,10 @@ class ReleaseToolingTest(unittest.TestCase):
         with self.assertRaises(ReleaseError):
             release_structure.check_structure(self.root)
         (self.root / "src/factory.zig").unlink()
-        self.write("src/large_fuzz_check.zig", "pub const x = 1;\n" * 751)
+        self.write("fuzz/large_fuzz_check.zig", "pub const x = 1;\n" * 751)
         with self.assertRaises(ReleaseError):
             release_structure.check_structure(self.root)
-        (self.root / "src/large_fuzz_check.zig").unlink()
+        (self.root / "fuzz/large_fuzz_check.zig").unlink()
         self.write("tools/test-helper.zig", "pub const debt = \"TODO\";\n")
         with self.assertRaises(ReleaseError):
             release_structure.check_structure(self.root)
@@ -1411,17 +1482,139 @@ class ReleaseToolingTest(unittest.TestCase):
         self.write("tests/nested/zig-pkg/skip.zig", "return error.SkipZigTest;\n")
         release_structure.check_structure(self.root)
         (self.root / "tests/nested/zig-pkg/skip.zig").unlink()
-        self.write("src/width_test.zig", "pub const value = \"" + "x" * 101 + "\";\n")
+        self.write("tests/width_test.zig", "pub const value = \"" + "x" * 101 + "\";\n")
         with self.assertRaises(ReleaseError):
             release_structure.check_structure(self.root)
-        (self.root / "src/width_test.zig").unlink()
+        (self.root / "tests/width_test.zig").unlink()
         body = "".join(f"    const x{index} = {index};\n" for index in range(71))
-        self.write("src/long_test.zig", "fn long() void {\n" + body + "}\n")
+        self.write("tests/long_test.zig", "fn long() void {\n" + body + "}\n")
         with self.assertRaises(ReleaseError):
             release_structure.check_structure(self.root)
-        (self.root / "src/long_test.zig").unlink()
+        (self.root / "tests/long_test.zig").unlink()
         self.write("src/.zig-cache/generated.zig", "pub const x = 1;\n" * 751)
         release_structure.check_structure(self.root)
+
+    def test_fuzz_selector_matches_build_targets(self) -> None:
+        self.write(
+            "build_fuzz.zig",
+            'const targets = .{.{\n'
+            '    .file = "fuzz/one.zig",\n'
+            '    .filter = "one fuzz",\n'
+            '}};\n',
+        )
+        self.write("fuzz/one.zig", 'test "one fuzz target" {}\n')
+        self.write(
+            "fuzz/targets.zig",
+            'pub fn select(comptime target: []const u8) type {\n'
+            '    if (select0(target)) |selected| return selected;\n'
+            '    @compileError("unknown fuzz target");\n'
+            '}\n'
+            'fn select0(comptime target: []const u8) ?type {\n'
+            '    if (eql(target, "fuzz/one.zig")) return @import(\n'
+            '        "../fuzz/one.zig",\n'
+            '    );\n'
+            '    return null;\n'
+            '}\n',
+        )
+        errors: list[str] = []
+        release_structure.check_fuzz_selector(self.root, errors)
+        self.assertEqual([], errors)
+        self.write(
+            "build_fuzz.zig",
+            'const targets = .{.{\n'
+            '    .file = "fuzz/one.zig",\n'
+            '    .filter = "missing fuzz",\n'
+            '}};\n',
+        )
+        errors = []
+        release_structure.check_fuzz_selector(self.root, errors)
+        self.assertIn(
+            "build_fuzz.zig: filter is unreachable from fuzz/one.zig: missing fuzz",
+            errors,
+        )
+        self.write(
+            "build_fuzz.zig",
+            'const targets = .{.{\n'
+            '    .file = "fuzz/one.zig",\n'
+            '    .filter = "one fuzz",\n'
+            '}};\n',
+        )
+        self.write(
+            "fuzz/targets.zig",
+            'pub fn select(comptime target: []const u8) type {\n'
+            '    if (select0(target)) |selected| return selected;\n'
+            '    @compileError("unknown fuzz target");\n'
+            '}\n'
+            'fn select0(comptime target: []const u8) ?type {\n'
+            '    if (eql(target, "fuzz/two.zig")) return @import(\n'
+            '        "../fuzz/two.zig",\n'
+            '    );\n'
+            '    return null;\n'
+            '}\n'
+            'fn never(comptime target: []const u8) ?type {\n'
+            '    // if (eql(target, "fuzz/one.zig")) return @import(\n'
+            '    /* if (eql(target, "fuzz/one.zig")) return @import( */\n'
+            '    if (eql(target, "fuzz/one.zig")) return @import(\n'
+            '        "../fuzz/one.zig",\n'
+            '    );\n'
+            '    return null;\n'
+            '}\n',
+        )
+        errors = []
+        release_structure.check_fuzz_selector(self.root, errors)
+        self.assertEqual(2, len(errors))
+
+    def test_fuzz_filter_reachability_requires_forced_import(self) -> None:
+        self.write("fuzz/nested.zig", 'test "nested fuzz target" {}\n')
+        self.write(
+            "fuzz/wrapper.zig",
+            'const nested = @import("nested.zig");\n',
+        )
+        errors: list[str] = []
+        self.assertFalse(release_structure.fuzz_filter_reachable(
+            self.root,
+            "fuzz/wrapper.zig",
+            "nested fuzz",
+            errors,
+        ))
+        self.write(
+            "fuzz/wrapper.zig",
+            'const text =\n'
+            '    \\\\/*\n'
+            ';\n'
+            'test "real fuzz target" {}\n',
+        )
+        self.assertTrue(release_structure.fuzz_filter_reachable(
+            self.root,
+            "fuzz/wrapper.zig",
+            "real fuzz",
+            errors,
+        ))
+        self.write(
+            "fuzz/wrapper.zig",
+            'const text =\n'
+            '    \\\\test "nested fuzz target" {}\n'
+            ';\n',
+        )
+        self.assertFalse(release_structure.fuzz_filter_reachable(
+            self.root,
+            "fuzz/wrapper.zig",
+            "nested fuzz",
+            errors,
+        ))
+        self.write(
+            "fuzz/wrapper.zig",
+            'const nested = @import("nested.zig");\n'
+            'test {\n'
+            '    _ = nested;\n'
+            '}\n',
+        )
+        self.assertTrue(release_structure.fuzz_filter_reachable(
+            self.root,
+            "fuzz/wrapper.zig",
+            "nested fuzz",
+            errors,
+        ))
 
     def test_fuzz_matrix_matches_build_family_wiring(self) -> None:
         self.write("build.zig", 'const fuzz = @import("build_fuzz.zig");\n')
@@ -1596,12 +1789,11 @@ class ReleaseToolingTest(unittest.TestCase):
         release_structure.check_dependencies(self.root, errors)
         self.assertTrue(any("production import is not local" in error for error in errors))
 
-        self.write("src/benchmark.zig", 'const dependency = @import("sigbench");\n')
-        self.write("src/ploof.zig", 'const helper = @import("benchmark.zig");\n')
+        self.write("benchmarks/benchmark.zig", 'const dependency = @import("sigbench");\n')
+        self.write("src/ploof.zig", 'const helper = @import("../benchmarks/benchmark.zig");\n')
         errors = []
         release_structure.check_dependencies(self.root, errors)
         self.assertTrue(any("benchmark-only source" in error for error in errors))
-        (self.root / "src/benchmark.zig").unlink()
         self.write("src/ploof.zig", "pub const version = \"fixture\";\n")
 
         self.write(
@@ -1722,7 +1914,7 @@ fn addBenchmarkSteps(b: *std.Build) void {
         .target = b.graph.host,
     }) orelse return;
     _ = b.createModule(.{
-        .root_source_file = b.path("src/benchmark.zig"),
+        .root_source_file = b.path("benchmarks/benchmark.zig"),
         .imports = &.{.{ .name = "sigbench", .module = dependency.module("sigbench") }},
     });
 }
@@ -1744,7 +1936,16 @@ def fixture_zon() -> str:
     },
     .paths = .{
         \"build.zig\",
+        \"build\",
         \"build.zig.zon\",
+        \"benchmark.zig\",
+        \"compile_failure_api.zig\",
+        \"fuzz.zig\",
+        \"proxy_origin.zig\",
+        \"test.zig\",
+        \"tsan.zig\",
+        \"benchmarks\",
+        \"fuzz\",
         \"src\",
         \"tools\",
         \"tests\",

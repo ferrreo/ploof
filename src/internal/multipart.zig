@@ -9,6 +9,4 @@ pub const plan = @import("multipart/plan.zig");
 
 test {
     std.testing.refAllDecls(@This());
-    _ = @import("multipart/part_headers_test.zig");
-    _ = @import("multipart/parser_test.zig");
 }

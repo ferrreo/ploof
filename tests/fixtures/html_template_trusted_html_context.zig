@@ -1,4 +1,4 @@
-const ploof = @import("ploof");
+const ploof = @import("ploof_compile").ploof;
 const source = ploof.HtmlSource;
 const template = ploof.HtmlTemplate;
 
