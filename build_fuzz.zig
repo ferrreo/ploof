@@ -453,7 +453,11 @@ const static_targets = [_]FuzzTarget{
         .file = "fuzz/live_static_schedule_fuzz_check.zig",
         .filter = "live static",
     },
-    .{ .name = "static-path", .file = "fuzz/static_file_fuzz_check.zig", .filter = "static path" },
+    .{
+        .name = "static-path",
+        .file = "fuzz/static_file_fuzz_check.zig",
+        .filter = "static path",
+    },
 };
 const asset_targets = [_]FuzzTarget{
     .{
