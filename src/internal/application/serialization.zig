@@ -1,6 +1,7 @@
 const std = @import("std");
 const response = @import("../../response.zig");
 const response_head = @import("../http1/response_head.zig");
+const response_static = @import("../http1/response_static.zig");
 const response_cors_fields = @import("../http1/response_cors_fields.zig");
 const response_transfer = @import("../http1/response_transfer.zig");
 
@@ -30,6 +31,22 @@ pub fn serializeBorrowed(
     if (value.body.isRendered() or value.body.isExternal()) return error.InvalidResponse;
     const body = value.bodyBytes();
     const request_is_head = std.mem.eql(u8, input.method, "HEAD");
+    if (staticPlan(value, cors_fields)) |plan| {
+        const head = try response_static.write(
+            selected_limits,
+            output,
+            plan,
+            input.date,
+            server_identity,
+            input.connection_close,
+        );
+        return .{
+            .head = head,
+            .body = if (request_is_head) "" else body,
+            .status = value.status,
+            .close_connection = input.connection_close,
+        };
+    }
     const head_output = workspace.response_head_bytes[0..@min(
         workspace.response_head_bytes.len,
         output.len,
@@ -76,6 +93,20 @@ pub fn serializeBorrowed(
         .body = if (written.plan.send_body) body else "",
         .status = selected_status,
         .close_connection = input.connection_close,
+    };
+}
+
+fn staticPlan(value: anytype, cors_fields: response_cors_fields.Fields) ?response_static.Plan {
+    const plan = value.__static_head orelse return null;
+    if (cors_fields.count != 0 or value.headers.len() != 0) return null;
+    if (plan.status != value.status or value.media_type == null) return null;
+    if (!std.mem.eql(u8, plan.media.bytes(), value.media_type.?.bytes())) return null;
+    return switch (value.body) {
+        .static => |body| if (body.ptr == plan.body.ptr and body.len == plan.body.len)
+            plan
+        else
+            null,
+        else => null,
     };
 }
 

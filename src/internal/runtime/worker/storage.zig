@@ -103,7 +103,7 @@ pub fn Storage(comptime App: type, comptime requested_limits: config.Limits) typ
         App.live_static_read_bytes_per_slot;
     const LiveStaticPathStorage = if (live_static_slots != 0) []u8 else struct {};
     const LiveStaticReadStorage = if (live_static_slots != 0) []u8 else struct {};
-    const Gzip = body_storage.GzipStorage(body_enabled, limits);
+    const Gzip = body_storage.GzipStorage(body_storage.gzipEnabled(App, body_enabled), limits);
     const HeadDecoder = request_head.Decoder(http1_limits.standard_request_head_limits);
     const decoded_path_bytes: u32 =
         http1_limits.standard_request_head_limits.request_line_bytes_max;
@@ -116,7 +116,6 @@ pub fn Storage(comptime App: type, comptime requested_limits: config.Limits) typ
         generation: u16 = 1,
         sequence: u16 = 1,
         inflight_operations: u16 = 0,
-        /// Zero means inactive; otherwise one plus the sent interim byte count.
         continue_cursor: u8 = 0,
         receive_flags: ReceiveFlags = .{},
         socket: reactor.Socket = .{ .value = 0 },
@@ -156,7 +155,7 @@ pub fn Storage(comptime App: type, comptime requested_limits: config.Limits) typ
         sequence: u16 = 1,
         connection_index: u16 = 0,
         chunked_workspace_index: ?u16 = null,
-        gzip_lease: Gzip.LeaseField = if (body_enabled) null else {},
+        gzip_lease: Gzip.LeaseField = if (Gzip.thread_count != 0) null else {},
         /// Committed length for either response source.
         response_used: u32 = 0,
         response_sent: u32 = 0,
@@ -379,7 +378,6 @@ pub fn Storage(comptime App: type, comptime requested_limits: config.Limits) typ
             std.debug.assert(!connection.close_after_response);
             std.debug.assert(connection.decoded_path_used == 0);
             std.debug.assert(connection.send_token == null);
-            std.debug.assert(connection.timeout_token == null);
             std.debug.assert(connection.close_token == null);
             std.debug.assert(!connection.receive_terminal_reaped);
             std.debug.assert(!connection.receive_flags.paused);
@@ -662,7 +660,7 @@ pub fn Storage(comptime App: type, comptime requested_limits: config.Limits) typ
         }
 
         pub fn gzipPool(self: *Self) ?*Gzip.PoolType {
-            if (comptime body_enabled) return self.gzip_decoders;
+            if (comptime Gzip.thread_count != 0) return self.gzip_decoders;
             return null;
         }
 
@@ -737,7 +735,7 @@ pub fn Storage(comptime App: type, comptime requested_limits: config.Limits) typ
         }
 
         pub fn bodyResetIssue(self: *const Self) ?BodyResetIssue {
-            if (comptime body_enabled) {
+            if (comptime Gzip.thread_count != 0) {
                 const lifecycle = self.gzip_decoders.lifecycleStatus();
                 if (lifecycle == .running or lifecycle == .quiesced) {
                     return .gzip_decoder_active;

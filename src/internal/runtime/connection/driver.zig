@@ -278,6 +278,7 @@ pub fn ObservedConfiguredDriver(
                 return .ignored_stale;
             }
             connection_invariants.assertRecord(self.storage, fields.slot_index);
+            connection.receive_flags.send_budget = if (@hasDecl(Reactor, "direct")) 16 else 0;
             const kind = fields.kind;
             if (!isConnectionOperation(kind)) return error.InvalidCompletion;
             if (!completion.more) {
@@ -642,11 +643,7 @@ pub fn ObservedConfiguredDriver(
                     connection_index,
                     now_ns,
                 ),
-                .buffer_complete => try ResponseTransport.complete(
-                    self,
-                    connection_index,
-                    now_ns,
-                ),
+                .buffer_complete => try ResponseTransport.complete(self, connection_index, now_ns),
             }
         }
         const recordResponseWire = ObservationIo.recordResponseWire;
@@ -689,6 +686,7 @@ pub fn ObservedConfiguredDriver(
         pub const beginCloseWithOutcome = Lifecycle.beginCloseWithOutcome;
         pub const maybeRelease = Lifecycle.maybeRelease;
         pub const completeObservedFallback = ObservationFallback.complete;
+        pub const completeResponse = ResponseTransport.complete;
         const submitCloseWhenStreamSettled = Lifecycle.submitCloseWhenStreamSettled;
         pub fn handleStreamReady(
             self: *Self,

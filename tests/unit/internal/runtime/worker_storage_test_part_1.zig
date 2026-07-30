@@ -18,6 +18,7 @@ const RequestReleaseIssue = source.RequestReleaseIssue;
 const TestApp = source.TestApp;
 const test_limits = source.test_limits;
 const BodyTestApp = source.BodyTestApp;
+const ResponseOnlyTestApp = source.ResponseOnlyTestApp;
 const body_test_limits = source.body_test_limits;
 const ExternalTestApp = source.ExternalTestApp;
 const external_test_limits = source.external_test_limits;
@@ -666,4 +667,11 @@ test "gzip controller and slots are stable caller-owned storage without startup 
         try std.testing.expect(slot.thread == null);
         try std.testing.expect(slot.counter == &pool.counter);
     }
+}
+
+test "response-only workspace does not reserve gzip decoders" {
+    const Storage = worker_storage.Storage(ResponseOnlyTestApp, gzip_two_limits);
+    try std.testing.expectEqual(@as(u16, 2), Storage.workspace_class_count);
+    try std.testing.expectEqual(@as(u32, 8), Storage.body_workspace_bytes_per_slot);
+    try std.testing.expectEqual(@as(u16, 0), Storage.gzip_decoder_thread_count);
 }

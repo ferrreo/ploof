@@ -255,7 +255,7 @@ fn addToLimit(total: *usize, amount: usize, maximum: u32) WriteError!void {
     total.* += amount;
 }
 
-fn validFieldValue(value: []const u8) bool {
+pub fn validFieldValue(value: []const u8) bool {
     for (value) |byte| {
         if (byte < 0x20 or byte == 0x7f) return false;
     }

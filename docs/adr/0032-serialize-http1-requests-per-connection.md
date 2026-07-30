@@ -1,17 +1,23 @@
 # Serialize HTTP/1 requests per connection
 
-Ploof will allow at most one active HTTP/1 request on each connection. A client
+Ploof allows at most one active HTTP/1 request on each connection. A client
 may pipeline later requests, but Ploof preserves their bytes in bounded
 connection or kernel buffers and does not parse and dispatch the next request
 until the current Response is complete. When those buffers fill, socket
 backpressure bounds further input instead of allocating a request queue.
 
+The Linux runtime may complete up to 16 finite responses in one reactor turn
+when nonblocking sends accept every byte. Intermediate responses use
+`MSG_MORE`; partial or backpressured sends fall back to tracked io_uring
+completion. This bound prevents one hot connection from starving the worker.
+Application completion, observation, timeout, and request-slot release still
+occur only after the kernel accepts the full response.
+
 Keep-alive remains supported, and separate connections remain concurrent across
 worker shards. Concurrent pipelined handlers would require multiple request
 slots per connection, ordered response buffering, and more complex failure
-semantics while offering little benefit behind edge proxies that already pool
-connections. Version one therefore chooses bounded memory and deterministic
-ordering over per-connection pipelining concurrency.
+semantics. The bounded send burst improves pipeline throughput without adding
+that queue, so version one keeps deterministic ordering and one active request.
 
 Ploof will not impose a default requests-per-connection count. Gin with Go and
 Express with Node also default to unlimited reuse, and Ploof reinitializes the

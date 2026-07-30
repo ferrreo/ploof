@@ -1,5 +1,10 @@
 # Migration notes
 
+## 0.1.1
+
+No migration is required. This patch release preserves documented 0.1.0
+source API, observable behavior, Linux and CPU floors, and proxy requirements.
+
 ## 0.1.0
 
 Initial public release. No earlier supported Ploof API exists to migrate.

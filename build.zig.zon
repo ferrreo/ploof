@@ -1,6 +1,6 @@
 .{
     .name = .ploof,
-    .version = "0.1.0",
+    .version = "0.1.1",
     .fingerprint = 0x4b3f6071f12c8b12, // Changing this has security and trust implications.
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
@@ -20,6 +20,7 @@
         "fuzz.zig",
         "proxy_origin.zig",
         "test.zig",
+        "techempower.zig",
         "tsan.zig",
         "benchmarks",
         "fuzz",

@@ -119,6 +119,9 @@ pub fn Operations(
             if (connection.timeout_token != null) {
                 if (connection.timeout_deadline_ns == 0) return error.StateInvariant;
                 if (connection.timeout_deadline_ns <= deadline_ns) {
+                    if (connection.timeout_deadline_ns < deadline_ns) {
+                        connection.receive_flags.timeout_extended = true;
+                    }
                     connection.timeout_deadline_ns = deadline_ns;
                     return;
                 }
@@ -141,6 +144,9 @@ pub fn Operations(
                 return error.StateInvariant;
             }
             if (deadline_ns < connection.timeout_deadline_ns) return error.StateInvariant;
+            if (connection.timeout_deadline_ns < deadline_ns) {
+                connection.receive_flags.timeout_extended = true;
+            }
             connection.timeout_deadline_ns = deadline_ns;
         }
 
@@ -156,6 +162,7 @@ pub fn Operations(
             const connection = &storage.connections[connection_index];
             connection.timeout_token = token;
             connection.timeout_deadline_ns = deadline_ns;
+            connection.receive_flags.timeout_extended = false;
         }
 
         pub fn cancelReceive(

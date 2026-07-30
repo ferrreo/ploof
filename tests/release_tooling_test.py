@@ -94,7 +94,7 @@ class ReleaseToolingTest(unittest.TestCase):
             (ROOT / "tools/test-proxy-interop.sh").read_text(encoding="utf-8"),
         )
         self.write("docs/README.md", "# Fixture\n")
-        self.write("docs/MIGRATIONS.md", "# Migration notes\n\n## 0.1.0\n\nInitial.\n")
+        self.write("docs/MIGRATIONS.md", "# Migration notes\n\n## 0.1.1\n\nInitial.\n")
         self.write("README.md", "# Fixture\n")
         self.write("SECURITY.md", "# Security\n")
         self.write("LICENSE", "BSD 3-Clause License\n")
@@ -148,7 +148,7 @@ class ReleaseToolingTest(unittest.TestCase):
         first_manifest = release.generate_release(
             self.root, "HEAD", first, "zig", self.evidence,
         )
-        with tarfile.open(first / "ploof-0.1.0.tar", "r") as archive:
+        with tarfile.open(first / "ploof-0.1.1.tar", "r") as archive:
             for member in archive.getmembers():
                 parts = set(Path(member.name).parts)
                 generated = {
@@ -167,11 +167,11 @@ class ReleaseToolingTest(unittest.TestCase):
             sorted((path.name, path.read_bytes()) for path in second.iterdir()),
         )
         release.verify_release(self.root, first_manifest, True, "zig", self.evidence)
-        archive = first / "ploof-0.1.0.tar"
+        archive = first / "ploof-0.1.1.tar"
         archive.write_bytes(archive.read_bytes() + b"tamper")
         with self.assertRaises(ReleaseError):
             release.verify_release(self.root, first_manifest, False, "zig", self.evidence)
-        sbom = second / "ploof-0.1.0.spdx.json"
+        sbom = second / "ploof-0.1.1.spdx.json"
         sbom_value = release.read_json(sbom)
         sbom_value["spdxVersion"] = "SPDX-0.0"
         release.write_json(sbom, sbom_value)
@@ -191,7 +191,7 @@ class ReleaseToolingTest(unittest.TestCase):
                     self.root, "HEAD", output, "zig", self.evidence,
                 )
                 manifest = release.read_json(manifest_path)
-                archive = output / "ploof-0.1.0.tar"
+                archive = output / "ploof-0.1.1.tar"
                 rewrite_source_tar(archive, mutation, manifest["source_date_epoch"])
                 rebind_tampered_archive(self.root, manifest_path)
                 with self.assertRaisesRegex(
@@ -216,7 +216,7 @@ class ReleaseToolingTest(unittest.TestCase):
                 manifest_path = release.generate_release(
                     self.root, "HEAD", output, "zig", self.evidence,
                 )
-                path = output / f"ploof-0.1.0.{suffix}"
+                path = output / f"ploof-0.1.1.{suffix}"
                 document = release.read_json(path)
                 target = document
                 for key in keys[:-1]:
@@ -249,7 +249,7 @@ class ReleaseToolingTest(unittest.TestCase):
         with self.assertRaisesRegex(ReleaseError, "subject set mismatch"):
             release.verify_release(self.root, manifest_path, False, "zig", self.evidence)
         (output / "stale-extra").unlink()
-        checksum = output / "ploof-0.1.0.sha256"
+        checksum = output / "ploof-0.1.1.sha256"
         contents = checksum.read_bytes()
         checksum.unlink()
         outside = self.root / "outside-checksum"
@@ -294,7 +294,7 @@ class ReleaseToolingTest(unittest.TestCase):
             self.root, "HEAD", output, "zig", self.evidence,
         )
         manifest = release.read_json(manifest_path)
-        notes_path = output / "ploof-0.1.0.release-notes.md"
+        notes_path = output / "ploof-0.1.1.release-notes.md"
         notes = notes_path.read_text(encoding="utf-8")
         self.assertIn(self.git("rev-parse", "HEAD"), notes)
         self.assertIn("HTTP/1.1", notes)
@@ -324,10 +324,10 @@ class ReleaseToolingTest(unittest.TestCase):
             if artifact["path"] != notes_path.name:
                 self.assertIn(artifact["path"], notes)
                 self.assertIn(artifact["sha256"], notes)
-        with tarfile.open(output / "ploof-0.1.0.tar", "r") as archive:
+        with tarfile.open(output / "ploof-0.1.1.tar", "r") as archive:
             names = {member.name for member in archive.getmembers()}
-        self.assertIn("ploof-0.1.0/release/release-notes.json", names)
-        self.assertNotIn("ploof-0.1.0/ploof-0.1.0.release-notes.md", names)
+        self.assertIn("ploof-0.1.1/release/release-notes.json", names)
+        self.assertNotIn("ploof-0.1.1/ploof-0.1.1.release-notes.md", names)
         notes_path.write_text(notes.replace("HTTP/1.1", "HTTP/9.9", 1), encoding="utf-8")
         for artifact in manifest["artifacts"]:
             if artifact["path"] == notes_path.name:
@@ -356,9 +356,9 @@ class ReleaseToolingTest(unittest.TestCase):
             stale, unknown, placeholder, literal_placeholder, control, duplicate,
         ):
             with self.assertRaises(ReleaseError):
-                release_notes.validate_source_document(document, "0.1.0")
+                release_notes.validate_source_document(document, "0.1.1")
         valid["security"] = "This version has no known security correction."
-        release_notes.validate_source_document(valid, "0.1.0")
+        release_notes.validate_source_document(valid, "0.1.1")
 
     def test_release_notes_require_complete_benchmark_evidence(self) -> None:
         missing = release_notes.BENCHMARK_GATES[0][0]
@@ -591,7 +591,7 @@ class ReleaseToolingTest(unittest.TestCase):
             canonical_gate_command(self.root, "HEAD", "release.archive"),
             [
                 "python3", "tools/release.py", "verify-consumer",
-                "--manifest", "zig-out/release/ploof-0.1.0.manifest.json",
+                "--manifest", "zig-out/release/ploof-0.1.1.manifest.json",
                 "--evidence", "zig-out/evidence", "--reproduce",
             ],
         )
@@ -599,7 +599,7 @@ class ReleaseToolingTest(unittest.TestCase):
             canonical_gate_command(self.root, "HEAD", "fixture.unknown")
 
     def test_release_archive_requires_exact_retained_subjects(self) -> None:
-        prefix = "artifacts/release.archive/ploof-0.1.0"
+        prefix = "artifacts/release.archive/ploof-0.1.1"
         paths = {"release.archive.log"} | {
             prefix + suffix for suffix in (
                 ".manifest.json",
@@ -1867,13 +1867,13 @@ class ReleaseToolingTest(unittest.TestCase):
         self.assertTrue(any("cannot open directory" in error for error in errors))
 
     def test_lightweight_tag_is_rejected(self) -> None:
-        self.git("tag", "v0.1.0")
+        self.git("tag", "v0.1.1")
         with self.assertRaises(ReleaseError):
-            release.verify_tag(self.root, "v0.1.0", "HEAD")
+            release.verify_tag(self.root, "v0.1.1", "HEAD")
 
     def test_release_version_cannot_escape_output(self) -> None:
         zon = (self.root / "build.zig.zon").read_text(encoding="utf-8")
-        self.write("build.zig.zon", zon.replace('"0.1.0"', '"../../escape"', 1))
+        self.write("build.zig.zon", zon.replace('"0.1.1"', '"../../escape"', 1))
         self.git("add", "build.zig.zon")
         subprocess.run(
             ["git", "commit", "-q", "-m", "invalid version"],
@@ -1924,7 +1924,7 @@ fn addBenchmarkSteps(b: *std.Build) void {
 def fixture_zon() -> str:
     return """.{
     .name = .ploof,
-    .version = \"0.1.0\",
+    .version = \"0.1.1\",
     .fingerprint = 0x4b3f6071f0b0dd5a,
     .minimum_zig_version = \"0.16.0\",
     .dependencies = .{
@@ -2275,7 +2275,7 @@ def rewrite_source_tar(path: Path, mutation: str, epoch: int) -> None:
     elif mutation == "remove":
         entries.pop()
     elif mutation == "insert":
-        member = tarfile.TarInfo("ploof-0.1.0/zz-injected")
+        member = tarfile.TarInfo("ploof-0.1.1/zz-injected")
         contents = b"injected\n"
         member.size = len(contents)
         member.mode = 0o644

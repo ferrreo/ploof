@@ -113,6 +113,13 @@ pub fn GzipStorage(comptime enabled: bool, comptime limits: anytype) type {
     };
 }
 
+pub fn gzipEnabled(comptime App: type, comptime fallback: bool) bool {
+    if (@hasDecl(App, "request_body_decoding_enabled")) {
+        return App.request_body_decoding_enabled;
+    }
+    return fallback;
+}
+
 pub fn initPool(
     comptime enabled: bool,
     comptime slots: u16,
@@ -242,7 +249,7 @@ pub fn Helpers(
                 for (storage.requests) |*request| {
                     request.body = .{};
                     request.chunked_workspace_index = null;
-                    request.gzip_lease = null;
+                    if (comptime @TypeOf(request.gzip_lease) != void) request.gzip_lease = null;
                 }
                 storage.body_workspaces.pool = slot_pool.SlotPool.init(
                     storage.body_workspaces.free_indices,
@@ -251,7 +258,9 @@ pub fn Helpers(
         }
 
         fn releaseUnusedEnabled(storage: anytype, request: anytype) AccessError!bool {
-            if (request.gzip_lease != null) return error.GzipDecoderActive;
+            if (comptime @TypeOf(request.gzip_lease) != void) {
+                if (request.gzip_lease != null) return error.GzipDecoderActive;
+            }
             if (request.body.workspace_index == null and
                 (request.body.used != 0 or
                     request.body.dirty_full or

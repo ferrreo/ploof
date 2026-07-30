@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "changes": [
-    "Initial typed routing and middleware API for HTTP/1.1 applications behind a reverse proxy.",
-    "Mandatory libc-free io_uring server lifecycle with fixed, upfront runtime storage.",
-    "JSON, HTML templates, embedded and live static assets, gzip, and streaming multipart uploads.",
-    "Trusted proxy metadata, CORS, CSRF, bounded metrics, and allocation-free access logging."
+    "Add a compliant ReleaseFast TechEmpower JSON and plaintext benchmark application.",
+    "Compile eligible static response heads and retain bounded direct sends across ready pipelined requests.",
+    "Reuse keep-alive timeout operations and split request-body capabilities from response-only applications.",
+    "Reset request-head decoders in place while securely wiping only consumed bytes."
   ],
-  "migration": "Initial public release; no earlier supported Ploof API exists to migrate.",
-  "security": "No known security correction applies because this is the initial public release.",
-  "performance": "No numeric performance claim is made here; publish only complete retained exact-candidate evidence."
+  "migration": "No migration is required; documented 0.1.0 source API and observable behavior are preserved.",
+  "security": "No known security correction applies to this release.",
+  "performance": "Response-path work is reduced while fixed startup allocation, parser validation, secure clearing, response ordering, and backpressure contracts remain unchanged."
 }

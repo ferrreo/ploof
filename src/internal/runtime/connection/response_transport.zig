@@ -173,7 +173,6 @@ pub fn Transport(
                 try driver.beginClose(connection_index);
                 return;
             }
-            try driver.operations.cancelTimeout(driver.storage, connection_index);
             try driver.maybeContinue(connection_index, now_ns);
         }
 

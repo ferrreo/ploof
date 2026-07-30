@@ -21,6 +21,7 @@ pub const makeRouteTarget = application_routes.target;
 pub const makeBodyPlans = application_routes.bodyPlans;
 pub const makeFiniteOutputPlans = application_routes.finiteOutputPlans;
 pub const hasBodyEndpoint = application_routes.hasBodyEndpoint;
+pub const hasRequestBodyEndpoint = application_routes.hasRequestBodyEndpoint;
 pub const hasMultipartEndpoint = application_routes.hasMultipartEndpoint;
 pub const countOpenMetrics = application_routes.countOpenMetrics;
 pub const maximumDecodedBodyBytes = application_routes.maximumDecodedBodyBytes;

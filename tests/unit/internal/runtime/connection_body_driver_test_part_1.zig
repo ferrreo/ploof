@@ -458,9 +458,9 @@ test "delayed continue control completions leave close operation capacity" {
     try harness.completeSendAll(connection_index);
     _ = try harness.receive(connection_index, "abcdef", true);
 
-    try std.testing.expectEqual(@as(u16, 6), harness.io.activeCount());
+    try std.testing.expectEqual(@as(u16, 5), harness.io.activeCount());
     _ = try harness.driver.stop(connection_index);
-    try std.testing.expectEqual(@as(u16, 10), harness.io.activeCount());
+    try std.testing.expectEqual(@as(u16, 9), harness.io.activeCount());
     try std.testing.expect(
         harness.io.activeCount() <= reactor.connection_operation_capacity,
     );

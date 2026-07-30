@@ -132,16 +132,16 @@ pub fn continueAfterResponse(
         try driver.beginClose(connection_index);
         return;
     }
-    if (connection.receive_token != null or connection.timeout_token != null or
-        connection.inflight_operations != 0)
-    {
+    const retained_operations = @as(u16, @intFromBool(connection.timeout_token != null)) +
+        @as(u16, @intFromBool(connection.receive_token != null));
+    if (connection.inflight_operations != retained_operations) {
         return;
     }
     try validate(driver.storage, connection_index);
     driver.storage.reuseConnection(connection_index);
     if (connection.pipeline_read < connection.pipeline_write) {
         connection.phase = .reused_head;
-        try driver.operations.replaceTimeout(
+        try driver.operations.retargetTimeout(
             driver.storage,
             connection_index,
             now_ns,
@@ -154,14 +154,16 @@ pub fn continueAfterResponse(
             pipeline_source,
             now_ns,
         );
-        if (GzipTransport.pipelineMayReceive(connection)) {
+        if (GzipTransport.pipelineMayReceive(connection) and connection.receive_token == null) {
             try driver.operations.submitReceiveForPhase(driver.storage, connection_index);
         }
     } else {
         connection.pipeline_read = 0;
         connection.pipeline_write = 0;
-        try driver.operations.submitReceiveForPhase(driver.storage, connection_index);
-        try driver.operations.replaceTimeout(
+        if (connection.receive_token == null) {
+            try driver.operations.submitReceiveForPhase(driver.storage, connection_index);
+        }
+        try driver.operations.retargetTimeout(
             driver.storage,
             connection_index,
             now_ns,

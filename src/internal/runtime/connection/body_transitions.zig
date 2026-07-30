@@ -1,6 +1,7 @@
 const std = @import("std");
 const application = @import("../../../application.zig");
 const connection_body_runtime = @import("body_runtime.zig");
+const connection_direct_send = @import("direct_send.zig");
 const connection_send = @import("send.zig");
 const request_head = @import("../../http1/request_head.zig");
 
@@ -44,7 +45,6 @@ pub fn Transitions(
             const connection = &driver.storage.connections[connection_index];
             connection.close_after_response = close_connection;
             connection.phase = .responding;
-            try driver.operations.cancelReceive(driver.storage, connection_index);
             if (connection.continue_cursor != 0) {
                 if (connection.send_token == null) return error.StateInvariant;
                 try @TypeOf(driver.operations).extendTimeoutDeadline(
@@ -61,11 +61,60 @@ pub fn Transitions(
                 now_ns,
                 write_stall_ns,
             );
+            if (comptime @hasDecl(@TypeOf(driver.*), "completeResponse")) {
+                if (try sendDirect(driver, connection_index, now_ns)) return;
+            }
             try driver.operations.submitSend(
                 driver.storage,
                 connection_index,
                 try connection_send.bytes(driver.storage, connection_index),
             );
+        }
+
+        fn sendDirect(
+            driver: anytype,
+            connection_index: u16,
+            now_ns: u64,
+        ) DriverError!bool {
+            const connection = &driver.storage.connections[connection_index];
+            if (comptime @hasField(@TypeOf(driver.*), "live_static")) {
+                if (driver.live_static.activeForConnection(driver.storage, connection_index)) {
+                    return false;
+                }
+            }
+            if (connection.receive_flags.send_budget == 0) return false;
+            const bytes = connection_send.bytes(driver.storage, connection_index) catch
+                return error.StateInvariant;
+            const more = connection.pipeline_read < connection.pipeline_write;
+            switch (connection_direct_send.write(connection.socket, bytes, more)) {
+                .would_block => return false,
+                .failed => |problem| {
+                    try driver.beginCloseWithOutcome(
+                        connection_index,
+                        @import("transport_failure.zig").outcome(problem),
+                    );
+                    return true;
+                },
+                .sent => |sent| {
+                    connection.receive_flags.send_budget -= 1;
+                    const request_index = connection.active_request orelse
+                        return error.StateInvariant;
+                    driver.observation.addResponseWire(request_index, sent) catch
+                        return error.StateInvariant;
+                    return switch (try connection_send.commitDirect(
+                        driver.storage,
+                        connection_index,
+                        sent,
+                    )) {
+                        .partial => false,
+                        .buffer_complete => complete: {
+                            try driver.completeResponse(connection_index, now_ns);
+                            break :complete true;
+                        },
+                        else => error.StateInvariant,
+                    };
+                },
+            }
         }
 
         pub fn handleRuntimeError(
@@ -301,21 +350,21 @@ test "body transition table covers final response scheduling" {
             .token = null,
             .close = false,
             .rejected = false,
-            .calls = &.{ .cancel_receive, .retarget_timeout, .submit_send },
+            .calls = &.{ .retarget_timeout, .submit_send },
         },
         .{
             .cursor = 1,
             .token = 9,
             .close = true,
             .rejected = false,
-            .calls = &.{ .cancel_receive, .extend_timeout },
+            .calls = &.{.extend_timeout},
         },
         .{
             .cursor = 1,
             .token = null,
             .close = true,
             .rejected = true,
-            .calls = &.{.cancel_receive},
+            .calls = &.{},
         },
     };
     for (cases) |case| {

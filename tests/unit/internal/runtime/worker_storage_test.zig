@@ -43,6 +43,12 @@ pub const BodyTestApp = struct {
     pub fn abort(_: *Workspace) error{}!void {}
 };
 
+pub const ResponseOnlyTestApp = struct {
+    pub const Workspace = TestApp.Workspace;
+    pub const body_workspace_bytes_max: u64 = 8;
+    pub const request_body_decoding_enabled = false;
+};
+
 pub const body_test_limits = config.Limits.validate(.{
     .connection_slots = 3,
     .request_slots = 2,
