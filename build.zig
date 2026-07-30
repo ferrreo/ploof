@@ -88,6 +88,7 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(load_driver);
     addLoadDriverChecks(b, test_step, target, load_driver);
+    addTechEmpower(b, test_step, target);
     addUnitTests(b, &.{ test_step, untrusted_step }, target, .Debug);
     addUnitTests(b, &.{test_step}, target, .ReleaseSafe);
     addUnitTests(b, &.{test_step}, target, .ReleaseFast);
@@ -104,6 +105,36 @@ pub fn build(b: *std.Build) void {
     build_fuzz.addSteps(b, test_step, target);
     const benchmarks = b.option(bool, "benchmarks", "Enable lazy sigbench steps") orelse false;
     if (benchmarks) addBenchmarkSteps(b, target);
+}
+
+fn addTechEmpower(
+    b: *std.Build,
+    test_step: *std.Build.Step,
+    target: std.Build.ResolvedTarget,
+) void {
+    const executable = b.addExecutable(.{
+        .name = "ploof-techempower",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("techempower.zig"),
+            .target = target,
+            .optimize = .ReleaseFast,
+            .link_libc = false,
+        }),
+    });
+    const install = b.addInstallArtifact(executable, .{});
+    const build_step = b.step("techempower", "Build the TechEmpower HTTP benchmark server");
+    build_step.dependOn(&install.step);
+
+    const tests = b.addTest(.{
+        .name = "techempower",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("techempower.zig"),
+            .target = target,
+            .optimize = .ReleaseSafe,
+            .link_libc = false,
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(tests).step);
 }
 
 fn addLoadDriverChecks(

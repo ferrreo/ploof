@@ -9,7 +9,8 @@ pub const ReceiveFlags = packed struct(u16) {
     gzip_rejecting: bool = false,
     response_fallback: bool = false,
     close_outcome: u4 = 0,
-    reserved: u6 = 0,
+    send_budget: u5 = 0,
+    timeout_extended: bool = false,
 };
 
 pub const RequestFlags = packed struct(u8) {

@@ -31,11 +31,14 @@ pub fn Controller(
             connection.timeout_token = null;
             const deadline_ns = connection.timeout_deadline_ns;
             connection.timeout_deadline_ns = 0;
+            const timeout_extended = connection.receive_flags.timeout_extended;
+            connection.receive_flags.timeout_extended = false;
             switch (completion.result) {
                 .success => try handleTimeoutSuccess(
                     driver,
                     connection_index,
                     deadline_ns,
+                    timeout_extended,
                     now_ns,
                 ),
                 .failure => |problem| if (problem != .canceled) {
@@ -58,9 +61,18 @@ pub fn Controller(
             driver: anytype,
             connection_index: u16,
             deadline_ns: u64,
+            timeout_extended: bool,
             now_ns: u64,
         ) DriverError!void {
             const connection = getConnection(driver, connection_index);
+            if (timeout_extended and now_ns < deadline_ns) {
+                try driver.operations.submitTimeoutAt(
+                    driver.storage,
+                    connection_index,
+                    deadline_ns,
+                );
+                return;
+            }
             if (try BodyTransport.handleTimeout(
                 driver,
                 connection_index,
@@ -68,14 +80,6 @@ pub fn Controller(
                 now_ns,
             )) return;
             if (connection.phase == .responding and
-                connection.send_token != null and now_ns < deadline_ns)
-            {
-                try driver.operations.submitTimeoutAt(
-                    driver.storage,
-                    connection_index,
-                    deadline_ns,
-                );
-            } else if (connection.phase == .responding and
                 ResponseTransport.liveStaticActive(driver, connection_index))
             {
                 try beginCloseWithOutcome(driver, connection_index, .write_stalled);

@@ -10,8 +10,13 @@ const TestError = error{
 };
 
 const TestConnection = struct {
+    const ReceiveFlags = struct {
+        timeout_extended: bool = false,
+    };
+
     timeout_token: ?reactor.OperationToken = null,
     timeout_deadline_ns: u64 = 0,
+    receive_flags: ReceiveFlags = .{},
     inflight_operations: u16 = 0,
     generation: u16 = 1,
     sequence: u16 = 1,

@@ -26,6 +26,13 @@ pub fn isEndpoint(comptime handler: anytype) bool {
     return isEndpointType(@TypeOf(handler));
 }
 
+pub fn acceptsRequestBody(comptime handler: anytype) bool {
+    if (!isEndpoint(handler)) return false;
+    const Handler = @TypeOf(handler);
+    if (@hasDecl(Handler, "ploof_input_endpoint")) return Handler.definition.body_enabled;
+    return true;
+}
+
 pub fn Input(comptime handler: anytype) type {
     return if (isEndpoint(handler)) @TypeOf(handler).Input else body.None;
 }

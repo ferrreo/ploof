@@ -252,6 +252,7 @@ pub fn Application(comptime config: anytype) type {
         app_middleware,
     );
     const body_enabled = comptime application_compile.hasBodyEndpoint(config.routes);
+    const request_body_enabled = comptime application_compile.hasRequestBodyEndpoint(config.routes);
     const multipart_enabled = comptime application_compile.hasMultipartEndpoint(config.routes);
     const metrics_route_count = comptime application_compile.countOpenMetrics(config.routes);
     const metrics_enabled = metrics_route_count != 0;
@@ -327,6 +328,7 @@ pub fn Application(comptime config: anytype) type {
         pub const ResponseGzipWorkspace = ResponseOutput.Workspace;
         pub const workspace_class_count: u16 = if (body_enabled) 2 else 1;
         pub const body_workspace_bytes_max: u64 = body_bytes;
+        pub const request_body_decoding_enabled = request_body_enabled;
         pub const body_workspace_alignment: u32 = body_alignment;
         pub const stream_enabled = stream_layout.stream_enabled;
         pub const stream_producer_bytes_max = stream_layout.producer_bytes_max;

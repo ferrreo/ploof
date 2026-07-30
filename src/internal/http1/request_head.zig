@@ -12,12 +12,10 @@ const status_module = @import("status.zig");
 const syntax = @import("syntax.zig");
 
 pub const Status = status_module.Status;
-
 pub const Rejection = struct {
     status: Status,
     close: bool = true,
 };
-
 pub const Span = struct {
     offset: u32,
     length: u32,
@@ -29,26 +27,22 @@ pub const Span = struct {
         return bytes[start..end];
     }
 };
-
 pub const Field = struct {
     name: Span,
     raw_value: Span,
     value: Span,
 };
-
 pub const Head = struct {
     method: Span,
     target: Span,
     fields_count: u16,
     bytes_count: u32,
 };
-
 pub const FeedState = union(enum) {
     need_more,
     ready: Head,
     rejected: Rejection,
 };
-
 pub const FeedResult = struct {
     consumed: usize,
     state: FeedState,
@@ -90,6 +84,16 @@ pub fn Decoder(comptime limits: limits_module.RequestHeadLimits) type {
 
         pub fn fields(self: *const Self) []const Field {
             return self.fields_storage[0..self.fields_count];
+        }
+
+        pub fn reset(self: *Self) void {
+            const used = self.bytes();
+            self.bytes_count = 0;
+            self.fields_count = 0;
+            self.line_bytes = 0;
+            self.request_line = true;
+            self.terminal = .receiving;
+            std.crypto.secureZero(u8, @constCast(used));
         }
 
         pub const TestAccess = if (builtin.is_test) struct {
@@ -507,6 +511,26 @@ test "request head accepts completed inclusive limits at every split" {
         try std.testing.expectEqual(@as(usize, 0), sticky.consumed);
         try std.testing.expect(sticky.state == .ready);
     }
+}
+
+test "request head reset wipes used bytes and reuses backing storage" {
+    const Parser = Decoder(.{
+        .head_bytes_max = 64,
+        .request_line_bytes_max = 32,
+        .field_line_bytes_max = 32,
+        .fields_max = 2,
+    });
+    var parser = Parser.init();
+    try std.testing.expect(parser.feed(minimal_request).state == .ready);
+    parser.reset();
+    try std.testing.expectEqual(@as(usize, 0), parser.bytes().len);
+    try std.testing.expectEqual(@as(usize, 0), parser.fields().len);
+    try std.testing.expectEqualSlices(
+        u8,
+        &([_]u8{0} ** minimal_request.len),
+        parser.bytes_storage[0..minimal_request.len],
+    );
+    try std.testing.expect(parser.feed(minimal_request).state == .ready);
 }
 
 test "request head rejects exact incomplete capacities at every split" {

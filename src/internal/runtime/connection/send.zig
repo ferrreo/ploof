@@ -68,6 +68,23 @@ pub fn abandon(storage: anytype, connection_index: u16) void {
     connection.continue_cursor = 0;
 }
 
+pub fn commitDirect(
+    storage: anytype,
+    connection_index: u16,
+    sent: usize,
+) Error!Result {
+    const remaining = try bytes(storage, connection_index);
+    if (sent == 0 or sent > remaining.len) return error.InvalidCompletion;
+    const progress = try planProgress(storage, connection_index, sent, false);
+    commitProgress(storage, connection_index, progress);
+    if (sent < remaining.len) return .partial;
+    if (requestResponseIndex(&storage.connections[connection_index])) |request_index| {
+        const request = &storage.requests[request_index];
+        if (request.response_sent < request.response_used) return .partial;
+    }
+    return .buffer_complete;
+}
+
 pub fn bytes(storage: anytype, connection_index: u16) Error![]const u8 {
     const connection = &storage.connections[connection_index];
     if (connection.continue_cursor != 0) {

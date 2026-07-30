@@ -237,7 +237,7 @@ test "PROXY v2 connection identity survives keepalive without another preface" {
     );
 }
 
-test "fragmented pipelined requests send serially and recycle every receive buffer" {
+test "fragmented pipeline reuses timeout and recycles every receive buffer" {
     var harness: Harness = undefined;
     try harness.init();
     const connection_index = try harness.addConnection(10);
@@ -268,11 +268,11 @@ test "fragmented pipelined requests send serially and recycle every receive buff
         false,
     );
     try std.testing.expectEqual(@as(u16, 1), harness.state.completed);
-
-    try harness.cancelCurrentTimeout(connection_index);
-    try std.testing.expectEqual(@as(u16, 1), harness.state.calls);
-    try harness.drainRetirements(connection_index);
     try std.testing.expectEqual(@as(u16, 2), harness.state.calls);
+    try std.testing.expectEqual(
+        first_timeout,
+        harness.storage.connections[connection_index].timeout_token.?,
+    );
     const second_send = harness.storage.connections[connection_index].send_token.?;
     _ = try harness.complete(
         second_send,
@@ -621,22 +621,11 @@ test "ReleaseFast rejects corrupt pipeline cursors before reuse lifecycle mutati
     reuse_connection.pipeline_read = 2;
     reuse_connection.pipeline_write = 1;
     const send = reuse_connection.send_token.?;
-    _ = try reuse_harness.complete(
+    try std.testing.expectError(error.StateInvariant, reuse_harness.complete(
         send,
         .{ .success = .{ .send = @intCast(reuse_harness.sendBytes(reuse_index).len) } },
         false,
-    );
-    const cancel = reuse_harness.findToken(reuse_index, .cancel).?;
-    const timeout = reuse_harness.io.operation(cancel).?.cancel.target;
-    _ = try reuse_harness.complete(
-        cancel,
-        .{ .success = .{ .cancel = .canceled } },
-        false,
-    );
-    try std.testing.expectError(
-        error.StateInvariant,
-        reuse_harness.complete(timeout, .{ .failure = .canceled }, false),
-    );
+    ));
     try std.testing.expectEqual(
         worker_storage.ConnectionPhase.responding,
         reuse_connection.phase,

@@ -11,9 +11,9 @@ HTTP/2 or HTTP/3. Ploof does not link libc, liburing, OpenSSL, or zlib. Required
 io_uring capabilities are checked actively at startup; a missing capability is
 a bounded startup error and never selects a fallback reactor.
 
-The feature surface through M13 and M14's release-evidence machinery are
-present. Version 0.1.0 remains unreleased until one immutable candidate passes
-M14's minimum-kernel/CPU matrix, two-machine performance, fuzz-budget, 24-hour soak,
+The feature surface through M13 and M14's release-evidence machinery is
+present. Each release requires one immutable candidate to pass M14's
+minimum-kernel/CPU matrix, two-machine performance, fuzz-budget, 24-hour soak,
 signed-tag, and provenance evidence. An unreleased checkout has no
 security-support claim.
 

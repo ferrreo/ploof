@@ -99,12 +99,9 @@ pub fn Actions(
         }
 
         pub fn resetHead(connection_record: anytype) void {
-            const used = @constCast(connection_record.head_decoder.bytes());
-            const Decoder = @TypeOf(connection_record.head_decoder);
-            connection_record.head_decoder = Decoder.init();
+            connection_record.head_decoder.reset();
             connection_record.receive_flags.close_outcome = 0;
             connection_record.receive_flags.response_fallback = false;
-            std.crypto.secureZero(u8, used);
         }
     };
 }
@@ -170,7 +167,7 @@ pub fn requestIssue(
     if (comptime settings.body_enabled) {
         if (request.body.terminal_response_pending) return .upload_active;
     }
-    if (comptime settings.body_enabled) {
+    if (comptime @TypeOf(request.gzip_lease) != void) {
         if (request.gzip_lease != null) return .gzip_decoder_active;
     }
     if (comptime settings.stream_enabled) {

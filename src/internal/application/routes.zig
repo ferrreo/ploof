@@ -163,6 +163,15 @@ pub fn hasBodyEndpoint(comptime descriptors: anytype) bool {
     return false;
 }
 
+pub fn hasRequestBodyEndpoint(comptime descriptors: anytype) bool {
+    inline for (descriptors) |descriptor| switch (descriptor.kind) {
+        .route => if (application_body.acceptsRequestBody(descriptor.handler)) return true,
+        .static_dir, .static_file => {},
+        .group => if (hasRequestBodyEndpoint(descriptor.children)) return true,
+    };
+    return false;
+}
+
 pub fn hasMultipartEndpoint(comptime descriptors: anytype) bool {
     inline for (descriptors) |descriptor| switch (descriptor.kind) {
         .route => {

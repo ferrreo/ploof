@@ -108,6 +108,7 @@ fn backendType(
         pub const file_target_capacity = capacity.file_target_capacity;
         pub const file_lease_capacity = capacity.file_lease_capacity;
         pub const file_handle_capacity = capacity.file_handle_capacity;
+        pub const direct = true;
         const token_table_size = io_uring_token_table.size(operation_capacity);
         const BufferOwners = [ReceiveBufferRing.count]?reactor.SlotIdentity;
         const BufferGenerations = [ReceiveBufferRing.count]u16;

@@ -137,6 +137,40 @@ test "bytes delivered after full send become next keepalive request" {
     );
 }
 
+test "retargeted keepalive timeout rearms when original deadline expires" {
+    var harness: Harness = undefined;
+    try harness.init();
+    const connection_index = try harness.addConnection(93);
+    const original = harness.storage.connections[connection_index].timeout_token.?;
+    const original_deadline = harness.io.operation(original).?.timeout.deadline_ns;
+    _ = try harness.receive(connection_index, ping_request, false);
+    const send = harness.storage.connections[connection_index].send_token.?;
+    _ = try harness.complete(
+        send,
+        .{ .success = .{ .send = @intCast(harness.sendBytes(connection_index).len) } },
+        false,
+    );
+    const extended_deadline = harness.storage.connections[connection_index].timeout_deadline_ns;
+    try std.testing.expect(original_deadline < extended_deadline);
+    try std.testing.expect(
+        harness.storage.connections[connection_index].timeout_token.?.eql(original),
+    );
+
+    harness.now_ns = original_deadline;
+    _ = try harness.complete(original, .{ .success = .{ .timeout = {} } }, false);
+    const rearmed = harness.storage.connections[connection_index].timeout_token.?;
+    try std.testing.expect(!rearmed.eql(original));
+    try std.testing.expectEqual(
+        extended_deadline,
+        harness.io.operation(rearmed).?.timeout.deadline_ns,
+    );
+    try std.testing.expectEqual(
+        worker_storage.ConnectionPhase.keepalive_idle,
+        harness.storage.connections[connection_index].phase,
+    );
+    try std.testing.expect(harness.storage.connections[connection_index].close_token == null);
+}
+
 test "partial send progress keeps one timer and rearms only when it expires" {
     var harness: Harness = undefined;
     try harness.init();

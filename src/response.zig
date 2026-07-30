@@ -2,6 +2,7 @@ const std = @import("std");
 const limits = @import("internal/http1/limits.zig");
 const media_type = @import("internal/http1/media_type.zig");
 const response_head = @import("internal/http1/response_head.zig");
+const response_static = @import("internal/http1/response_static.zig");
 const response_headers = @import("internal/http1/response_headers.zig");
 const response_transfer = @import("internal/http1/response_transfer.zig");
 const status_module = @import("internal/http1/status.zig");
@@ -124,6 +125,7 @@ pub fn Response(comptime requested_maximum: HeadLimits) type {
         media_type: ?MediaType,
         body: Body,
         headers: *HeaderStorage,
+        __static_head: ?response_static.Plan = null,
 
         pub fn init(
             workspace: *WorkspaceType,
@@ -338,12 +340,14 @@ pub fn Response(comptime requested_maximum: HeadLimits) type {
             comptime selected_media_type: MediaType,
         ) Self {
             comptime assertStaticCombination(status, true, selected_media_type);
-            return make(
+            var result = make(
                 workspace,
                 status,
                 .{ .static = value },
                 selected_media_type,
             );
+            result.__static_head = response_static.Plan.init(status, selected_media_type, value);
+            return result;
         }
 
         fn finiteBorrowed(
