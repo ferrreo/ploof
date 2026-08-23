@@ -277,7 +277,7 @@ fn failRuntime(server: anytype, node: anytype, worker_index: u16, problem: anyer
     };
     node.status.store(.runtime_failed, .release);
     server.startup_event.notify();
-    server.__notifyWorkerFailure();
+    server.__notifyWorkerFailure(cleanup == .process_exit_required);
 }
 
 fn stopCommand(node: anytype) !void {

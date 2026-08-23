@@ -54,6 +54,12 @@ pub const Deadlines = struct {
 
 pub const DeadlineError = error{DeadlineOverflow};
 
+/// One worker dying must not stop the process while others can still serve.
+/// Process-exit cleanup or zero remaining ready workers still stop the process.
+pub fn workerFailureStopsProcess(ready_workers: u16, process_exit_required: bool) bool {
+    return process_exit_required or ready_workers == 0;
+}
+
 pub fn deadlines(start_ns: u64, profile: ShutdownProfile) DeadlineError!Deadlines {
     if (profile.issue() != null) return error.DeadlineOverflow;
     const grace_ns = std.math.add(u64, start_ns, profile.grace_ns) catch {
@@ -254,6 +260,14 @@ pub const ShutdownIncomplete = struct {
         );
     }
 };
+
+test "worker failure stops the process only when no ready worker remains or cleanup requires it" {
+    try std.testing.expect(!workerFailureStopsProcess(1, false));
+    try std.testing.expect(!workerFailureStopsProcess(3, false));
+    try std.testing.expect(workerFailureStopsProcess(0, false));
+    try std.testing.expect(workerFailureStopsProcess(1, true));
+    try std.testing.expect(workerFailureStopsProcess(0, true));
+}
 
 test "lifecycle advances irreversibly and repeated commands are idempotent" {
     var controller = Controller{};
