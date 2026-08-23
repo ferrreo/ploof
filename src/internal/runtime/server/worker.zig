@@ -263,11 +263,13 @@ fn failRuntime(server: anytype, node: anytype, worker_index: u16, problem: anyer
         cleanup_status = node.worker.cleanupStatus();
     }
     node.command.abortAfterBackend();
-    var cleanup: startup_api.Cleanup = if (cleanup_status.requiresProcessExit())
+    const cleanup: startup_api.Cleanup = if (cleanup_status.requiresProcessExit())
         .process_exit_required
     else
         .clean;
-    if (node.listener.close() != null) cleanup = .process_exit_required;
+    // SO_REUSEPORT: this listen fd is this worker only. A close() errno
+    // must not take down workers that can still accept.
+    _ = node.listener.close();
     node.published.publish(cleanup_status, .{});
     node.failure = .{
         .worker_index = worker_index,
