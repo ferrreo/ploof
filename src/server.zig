@@ -152,12 +152,12 @@ pub fn Server(comptime App: type, comptime requested_options: Options) type {
         }
 
         pub fn phase(self: *const Self) lifecycle.Phase {
-            self.assertStableAddressIfStarted();
+            if (self.start_attempted.load(.acquire)) self.assertStableAddress();
             return self.lifecycle_controller.phase();
         }
 
         pub fn drainStage(self: *const Self) lifecycle.DrainStage {
-            self.assertStableAddressIfStarted();
+            if (self.start_attempted.load(.acquire)) self.assertStableAddress();
             return self.lifecycle_controller.drainStage();
         }
 
@@ -262,7 +262,18 @@ pub fn Server(comptime App: type, comptime requested_options: Options) type {
         }
 
         pub fn __notifyWorkerFailure(self: *Self, process_exit_required: bool) void {
-            server_shutdown_runtime.notifyWorkerFailure(self, process_exit_required);
+            self.shutdown_mutex.lock();
+            defer self.shutdown_mutex.unlock();
+            self.assertStableAddress();
+            const ready = server_shutdown_runtime.readyWorkerCount(self);
+            if (!lifecycle.workerFailureStopsProcess(ready, process_exit_required)) return;
+            self.ensureShutdownDeadlines() catch self.setImmediateShutdownDeadlines();
+            _ = self.lifecycle_controller.beginDrain();
+            _ = self.lifecycle_controller.beginForced();
+            self.metrics.requestStop();
+            if (self.commands_ready.load(.acquire)) self.publishCommand(.force) catch {};
+            self.startup_control_event.notify();
+            if (self.completion_live.load(.acquire)) _ = self.completion.signal();
         }
 
         pub fn shutdown(self: *Self) ShutdownError!ShutdownResult {
@@ -594,10 +605,6 @@ pub fn Server(comptime App: type, comptime requested_options: Options) type {
             {
                 @panic("PLOOF Server moved after start");
             }
-        }
-
-        fn assertStableAddressIfStarted(self: *const Self) void {
-            if (self.start_attempted.load(.acquire)) self.assertStableAddress();
         }
 
         fn beginDrainLocked(self: *Self) ShutdownError!lifecycle.Transition {
