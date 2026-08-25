@@ -190,6 +190,31 @@ fn closeCompletion(server: anytype) void {
     _ = server.completion.close();
 }
 
+pub fn notifyWorkerFailure(server: anytype, process_exit_required: bool) void {
+    server.shutdown_mutex.lock();
+    defer server.shutdown_mutex.unlock();
+    server.assertStableAddress();
+    if (!lifecycle.workerFailureStopsProcess(
+        readyWorkerCount(server),
+        process_exit_required,
+    )) return;
+    server.ensureShutdownDeadlines() catch server.setImmediateShutdownDeadlines();
+    _ = server.lifecycle_controller.beginDrain();
+    _ = server.lifecycle_controller.beginForced();
+    server.metrics.requestStop();
+    if (server.commands_ready.load(.acquire)) server.publishCommand(.force) catch {};
+    server.startup_control_event.notify();
+    if (server.completion_live.load(.acquire)) _ = server.completion.signal();
+}
+
+fn readyWorkerCount(server: anytype) u16 {
+    var ready: u16 = 0;
+    for (server.nodes[0..server.thread_count]) |*node| {
+        if (node.status.load(.acquire) == .ready) ready += 1;
+    }
+    return ready;
+}
+
 fn allTerminal(server: anytype) bool {
     for (server.nodes[0..server.thread_count]) |*node| {
         switch (node.status.load(.acquire)) {
