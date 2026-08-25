@@ -262,28 +262,7 @@ pub fn Server(comptime App: type, comptime requested_options: Options) type {
         }
 
         pub fn __notifyWorkerFailure(self: *Self, process_exit_required: bool) void {
-            self.shutdown_mutex.lock();
-            defer self.shutdown_mutex.unlock();
-            self.assertStableAddress();
-            if (!lifecycle.workerFailureStopsProcess(
-                self.readyWorkerCount(),
-                process_exit_required,
-            )) return;
-            self.ensureShutdownDeadlines() catch self.setImmediateShutdownDeadlines();
-            _ = self.lifecycle_controller.beginDrain();
-            _ = self.lifecycle_controller.beginForced();
-            self.metrics.requestStop();
-            if (self.commands_ready.load(.acquire)) self.publishCommand(.force) catch {};
-            self.startup_control_event.notify();
-            if (self.completion_live.load(.acquire)) _ = self.completion.signal();
-        }
-
-        fn readyWorkerCount(self: *const Self) u16 {
-            var ready: u16 = 0;
-            for (self.nodes[0..self.thread_count]) |*node| {
-                if (node.status.load(.acquire) == .ready) ready += 1;
-            }
-            return ready;
+            server_shutdown_runtime.notifyWorkerFailure(self, process_exit_required);
         }
 
         pub fn shutdown(self: *Self) ShutdownError!ShutdownResult {
